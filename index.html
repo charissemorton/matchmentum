@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Job Search Assistant</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #34d399;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #f87171;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #60a5fa;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .file-upload-zone {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-zone:hover {
+            background: #eff1ff;
+            border-color: #764ba2;
+        }
+
+        .match-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 18px;
+            margin: 16px 0;
+        }
+
+        .match-excellent {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .match-good {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .match-fair {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .match-poor {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .document-output {
+            background: #f9fafb;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 24px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .nav-buttons button {
+            flex: 0 0 auto;
+            min-width: 120px;
+        }
+
+        .generated-files-list {
+            background: #f9fafb;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+        }
+
+        .generated-file-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .file-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 AI Job Search Assistant</h1>
+            <p>Smart job matching with AI-powered resume and cover letter generation</p>
+        </div>
+
+        <div class="content">
+            <!-- Setup Section -->
+            <div id="setup-section" class="section active">
+                <h2>Profile Setup</h2>
+                <p style="margin: 16px 0; color: #666;">Choose how you'd like to set up your profile:</p>
+                
+                <div class="button-group">
+                    <button class="btn-primary" onclick="showManualEntry()">Manual Entry</button>
+                    <button class="btn-secondary" onclick="showDocumentUpload()">Upload Documents</button>
+                </div>
+
+                <!-- Manual Entry Form -->
+                <div id="manual-entry-form" class="hidden" style="margin-top: 32px;">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" id="phone">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" id="location" placeholder="City, State">
+                    </div>
+
+                    <div class="form-group">
+                        <label>LinkedIn Profile</label>
+                        <input type="url" id="linkedin" placeholder="https://linkedin.com/in/yourname">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Work Experience</label>
+                        <textarea id="experience" placeholder="List your relevant work experience..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Skills</label>
+                        <textarea id="skills" placeholder="List your key skills..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Education</label>
+                        <textarea id="education" placeholder="Your educational background..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Certifications</label>
+                        <textarea id="certifications" placeholder="Any relevant certifications..."></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="showSection('setup-section'); hideManualEntry()">Back</button>
+                        <button class="btn-primary" onclick="saveManualProfile()">Save Profile</button>
+                    </div>
+                </div>
+
+                <!-- Document Upload Form -->
+                <div id="document-upload-form" class="hidden" style="margin-top: 32px;">
+                    <div class="file-upload-zone" onclick="document.getElementById('file-input').click()">
+                        <p style="font-size: 48px; margin-bottom: 16px;">📄</p>
+                        <p style="font-weight: 600; margin-bottom: 8px;">Click to upload your resume/CV</p>
+                        <p style="font-size: 14px; color: #666;">Supports PDF, DOCX, or TXT files</p>
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt" multiple style="display: none;" onchange="handleFileUpload(event)">
+                    </div>
+                    <div id="upload-status" class="hidden"></div>
+                    <div class="button-group" style="margin-top: 24px;">
+                        <button class="btn-secondary" onclick="showSection('setup-section'); hideDocumentUpload()">Back</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Section -->
+            <div id="review-section" class="section">
+                <div class="nav-buttons">
+                    <button class="btn-secondary" onclick="showSection('setup-section')">← Back to Setup</button>
+                </div>
+                
+                <h2>Review Your Profile</h2>
+                <p style="margin: 16px 0; color: #666;">Please review and edit if needed:</p>
+                
+                <div id="profile-review"></div>
+                
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="editProfile()">Edit Profile</button>
+                    <button class="btn-danger" onclick="startOver()">Start Over</button>
+                    <button class="btn-primary" onclick="confirmProfile()">Confirm & Continue</button>
+                </div>
+            </div>
+
+            <!-- Job Analysis Section -->
+            <div id="job-analysis-section" class="section">
+                <div class="nav-buttons">
+                    <button class="btn-secondary" onclick="showSection('review-section')">← Back to Profile</button>
+                    <button class="btn-secondary" onclick="showGeneratedFiles()">📁 View Generated Files</button>
+                </div>
+                
+                <h2>Analyze a Job Posting</h2>
+                <p style="margin: 16px 0; color: #666;">Paste the job description or share the URL with me in chat:</p>
+                
+                <div class="form-group">
+                    <label>Job Description</label>
+                    <textarea id="job-description" placeholder="Paste the full job description here..." style="min-height: 200px;"></textarea>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>💡 Tip:</strong> If you have a job posting URL, share it with me in the chat and I'll fetch the full description for you!
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="analyzeJob()">Analyze Job Match</button>
+                </div>
+
+                <div id="analysis-result" class="hidden"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="section">
+                <div class="nav-buttons">
+                    <button class="btn-secondary" onclick="showSection('job-analysis-section')">← Back to Job Analysis</button>
+                    <button class="btn-secondary" onclick="showGeneratedFiles()">📁 View Generated Files</button>
+                </div>
+                
+                <div id="results-content"></div>
+            </div>
+
+            <!-- Generated Files Section -->
+            <div id="generated-files-section" class="section">
+                <div class="nav-buttons">
+                    <button class="btn-secondary" onclick="returnToPreviousSection()">← Back</button>
+                </div>
+                
+                <h2>Generated Files</h2>
+                <p style="margin: 16px 0; color: #666;">All your generated resumes and cover letters:</p>
+                
+                <div id="files-list" class="generated-files-list">
+                    <p style="color: #666; text-align: center;">No files generated yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Storage wrapper functions that work whether storage API is available or not
+        async function safeStorageGet(key) {
+            try {
+                if (typeof window.storage !== 'undefined' && window.storage) {
+                    return await safeStorageGet(key);
+                }
+                // Fallback to localStorage
+                const value = localStorage.getItem(key);
+                return value ? { value: value } : null;
+            } catch (error) {
+                console.log('Storage get failed, using memory only:', error);
+                return null;
+            }
+        }
+
+        async function safeStorageSet(key, value) {
+            try {
+                if (typeof window.storage !== 'undefined' && window.storage) {
+                    await safeStorageSet(key, value);
+                } else {
+                    // Fallback to localStorage
+                    localStorage.setItem(key, value);
+                }
+            } catch (error) {
+                console.log('Storage set failed, continuing without persistence:', error);
+            }
+        }
+
+        async function safeStorageDelete(key) {
+            try {
+                if (typeof window.storage !== 'undefined' && window.storage) {
+                    await safeStorageDelete(key);
+                } else {
+                    localStorage.removeItem(key);
+                }
+            } catch (error) {
+                console.log('Storage delete failed:', error);
+            }
+        }
+
+        // Initialize storage
+        let profileData = null;
+        let currentJobDescription = null;
+        let currentAnalysis = null;
+        let previousSection = null;
+        let generatedFiles = [];
+
+        // Load saved data
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Load profile
+                const savedProfile = await safeStorageGet('job-assistant-profile');
+                if (savedProfile) {
+                    profileData = JSON.parse(savedProfile.value);
+                    showSection('job-analysis-section');
+                }
+
+                // Load generated files
+                const savedFiles = await safeStorageGet('job-assistant-files');
+                if (savedFiles) {
+                    generatedFiles = JSON.parse(savedFiles.value);
+                }
+            } catch (error) {
+                console.log('No saved data found');
+            }
+        });
+
+        // Save generated files to storage
+        async function saveGeneratedFiles() {
+            try {
+                await safeStorageSet('job-assistant-files', JSON.stringify(generatedFiles));
+            } catch (error) {
+                console.error('Error saving files:', error);
+            }
+        }
+
+        // Add file to generated files list
+        function addGeneratedFile(type, jobTitle, content) {
+            const file = {
+                id: Date.now(),
+                type: type, // 'resume' or 'coverLetter'
+                jobTitle: jobTitle,
+                content: content,
+                timestamp: new Date().toISOString(),
+                dateStr: new Date().toLocaleString()
+            };
+            
+            generatedFiles.unshift(file); // Add to beginning of array
+            saveGeneratedFiles();
+        }
+
+        // Display generated files
+        function displayGeneratedFiles() {
+            const filesList = document.getElementById('files-list');
+            
+            if (generatedFiles.length === 0) {
+                filesList.innerHTML = '<p style="color: #666; text-align: center;">No files generated yet.</p>';
+                return;
+            }
+
+            filesList.innerHTML = generatedFiles.map(file => `
+                <div class="generated-file-item">
+                    <div class="file-info">
+                        <div class="file-name">
+                            ${file.type === 'resume' ? '📄' : '✉️'} 
+                            ${file.type === 'resume' ? 'Resume' : 'Cover Letter'} - ${file.jobTitle}
+                        </div>
+                        <div class="file-meta">Generated on ${file.dateStr}</div>
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn-secondary" onclick="viewFile(${file.id})">View</button>
+                        <button class="btn-secondary" onclick="downloadFileAsDOCX(${file.id})">Download DOCX</button>
+                        <button class="btn-danger" onclick="deleteFile(${file.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewFile(fileId) {
+            const file = generatedFiles.find(f => f.id === fileId);
+            if (!file) return;
+
+            const resultsContent = document.getElementById('results-content');
+            resultsContent.innerHTML = `
+                <h3>${file.type === 'resume' ? 'Resume' : 'Cover Letter'} - ${file.jobTitle}</h3>
+                <div class="document-output">${file.content}</div>
+                <div class="button-group" style="margin-top: 24px;">
+                    <button class="btn-secondary" onclick="copyToClipboard(\`${file.content.replace(/`/g, '\\`')}\`)">Copy Text</button>
+                    <button class="btn-primary" onclick="downloadFileAsDOCX(${file.id})">Download as DOCX</button>
+                </div>
+            `;
+            
+            showSection('results-section');
+        }
+
+        function deleteFile(fileId) {
+            if (confirm('Are you sure you want to delete this file?')) {
+                generatedFiles = generatedFiles.filter(f => f.id !== fileId);
+                saveGeneratedFiles();
+                displayGeneratedFiles();
+            }
+        }
+
+        async function downloadFileAsDOCX(fileId) {
+            const file = generatedFiles.find(f => f.id === fileId);
+            if (!file) return;
+
+            try {
+                if (typeof JSZip === 'undefined') {
+                    throw new Error('Required library not loaded. Please refresh the page.');
+                }
+
+                const zip = new JSZip();
+                
+                // DOCX structure
+                zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+                
+                zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+                
+                const wordFolder = zip.folder('word');
+                wordFolder.folder('_rels').file('document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`);
+                
+                // Convert content based on file type
+                let xmlParagraphs;
+                if (file.type === 'coverLetter') {
+                    const textParagraphs = file.content.split('\n\n').filter(p => p.trim());
+                    xmlParagraphs = textParagraphs.map(para => {
+                        const escaped = para.trim()
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&apos;');
+                        
+                        return `<w:p><w:pPr><w:spacing w:after="200"/></w:pPr><w:r><w:rPr><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${escaped}</w:t></w:r></w:p>`;
+                    }).join('');
+                } else {
+                    const lines = file.content.split('\n');
+                    xmlParagraphs = lines.map(line => {
+                        const trimmed = line.trim();
+                        if (!trimmed) return '<w:p><w:pPr><w:spacing w:after="100"/></w:pPr></w:p>';
+                        
+                        const isHeader = trimmed === trimmed.toUpperCase() && trimmed.length < 50;
+                        const fontSize = isHeader ? 28 : 22;
+                        const spacing = isHeader ? 240 : 120;
+                        
+                        const escaped = trimmed
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&apos;');
+                        
+                        return `<w:p><w:pPr><w:spacing w:after="${spacing}"/></w:pPr><w:r><w:rPr><w:sz w:val="${fontSize}"/>${isHeader ? '<w:b/>' : ''}</w:rPr><w:t xml:space="preserve">${escaped}</w:t></w:r></w:p>`;
+                    }).join('');
+                }
+                
+                wordFolder.file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${xmlParagraphs}
+  </w:body>
+</w:document>`);
+                
+                const blob = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${file.jobTitle.replace(/[^a-z0-9]/gi, '_')}_${file.type}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+            } catch (error) {
+                console.error('Error creating DOCX:', error);
+                alert('Error creating DOCX file. You can use the Copy Text button instead.');
+            }
+        }
+
+        function showGeneratedFiles() {
+            previousSection = document.querySelector('.section.active').id;
+            displayGeneratedFiles();
+            showSection('generated-files-section');
+        }
+
+        function returnToPreviousSection() {
+            if (previousSection) {
+                showSection(previousSection);
+            } else {
+                showSection('job-analysis-section');
+            }
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function showManualEntry() {
+            document.getElementById('manual-entry-form').classList.remove('hidden');
+            document.getElementById('document-upload-form').classList.add('hidden');
+        }
+
+        function hideManualEntry() {
+            document.getElementById('manual-entry-form').classList.add('hidden');
+        }
+
+        function showDocumentUpload() {
+            document.getElementById('document-upload-form').classList.remove('hidden');
+            document.getElementById('manual-entry-form').classList.add('hidden');
+        }
+
+        function hideDocumentUpload() {
+            document.getElementById('document-upload-form').classList.add('hidden');
+        }
+
+        async function saveManualProfile() {
+            profileData = {
+                contact: {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    location: document.getElementById('location').value,
+                    linkedin: document.getElementById('linkedin').value
+                },
+                experience: document.getElementById('experience').value,
+                skills: document.getElementById('skills').value,
+                education: document.getElementById('education').value,
+                certifications: document.getElementById('certifications').value
+            };
+
+            // Save to storage
+            try {
+                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+            } catch (error) {
+                console.error('Error saving profile:', error);
+            }
+
+            displayProfileForReview();
+            showSection('review-section');
+        }
+
+        async function handleFileUpload(event) {
+            const files = event.target.files;
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.classList.remove('hidden');
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Processing documents...</p></div>';
+
+            let extractedText = '';
+
+            for (let file of files) {
+                try {
+                    let text = '';
+                    if (file.type === 'application/pdf') {
+                        text = await extractTextFromPDF(file);
+                    } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                        text = await extractTextFromDOCX(file);
+                    } else if (file.type === 'text/plain') {
+                        text = await file.text();
+                    }
+                    extractedText += text + '\n\n';
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                }
+            }
+
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing with AI...</p></div>';
+
+            await parseExtractedText(extractedText);
+            displayProfileForReview();
+            
+            statusDiv.innerHTML = '<div class="alert alert-success">Documents processed successfully!</div>';
+            setTimeout(() => {
+                showSection('review-section');
+            }, 1500);
+        }
+
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let text = '';
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = content.items.map(item => item.str).join(' ');
+                text += pageText + '\n';
+            }
+            
+            return text;
+        }
+
+        async function extractTextFromDOCX(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer });
+            return result.value;
+        }
+
+        async function parseExtractedText(text) {
+            // Try AI parsing first if backend is available
+            let aiParsed = false;
+            
+            try {
+                const systemPrompt = `You are parsing a resume/CV document. Extract and categorize the following information:
+- Contact information (name, email, phone, location, LinkedIn)
+- Work experience
+- Skills
+- Education
+- Certifications
+
+Return ONLY valid JSON with no additional text, in this exact format:
+{
+  "contact": {
+    "name": "",
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": ""
+  },
+  "experience": "",
+  "skills": "",
+  "education": "",
+  "certifications": ""
+}`;
+
+                const response = await callClaudeAPI(systemPrompt, text);
+                profileData = JSON.parse(response);
+                aiParsed = true;
+                
+                // Save to storage
+                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+            } catch (error) {
+                console.error('AI parsing failed, using pattern-based parsing:', error);
+                // Use smart pattern-based parsing instead
+                profileData = parseResumeWithPatterns(text);
+                
+                // Save to storage
+                try {
+                    await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+                } catch (e) {
+                    console.error('Storage error:', e);
+                }
+            }
+        }
+
+        function parseResumeWithPatterns(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            
+            const result = {
+                contact: { name: '', email: '', phone: '', location: '', linkedin: '' },
+                experience: '',
+                skills: '',
+                education: '',
+                certifications: ''
+            };
+            
+            // Extract contact info
+            const emailMatch = text.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+            if (emailMatch) result.contact.email = emailMatch[0];
+            
+            const phoneMatch = text.match(/(\+?\d{1}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+            if (phoneMatch) result.contact.phone = phoneMatch[0];
+            
+            const linkedinMatch = text.match(/(?:linkedin\.com\/in\/|linkedin\.com\/pub\/)[\w-]+/i);
+            if (linkedinMatch) result.contact.linkedin = 'https://' + linkedinMatch[0];
+            
+            // Name is typically in first few lines before contact info
+            for (let i = 0; i < Math.min(5, lines.length); i++) {
+                const line = lines[i];
+                if (!line.match(/@|linkedin|http|[0-9]{3}/i) && line.length > 5 && line.length < 50) {
+                    // Likely a name
+                    const words = line.split(/\s+/);
+                    if (words.length >= 2 && words.length <= 4) {
+                        result.contact.name = line;
+                        break;
+                    }
+                }
+            }
+            
+            // Find section markers
+            const sections = {
+                experience: [],
+                skills: [],
+                education: [],
+                certifications: []
+            };
+            
+            let currentSection = null;
+            const experienceKeywords = /experience|employment|work history|professional background/i;
+            const skillsKeywords = /skills|competencies|technical skills|core competencies/i;
+            const educationKeywords = /education|academic|degrees/i;
+            const certificationKeywords = /certifications?|licenses|credentials/i;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const upperLine = line.toUpperCase();
+                
+                // Check if this line is a section header
+                if (experienceKeywords.test(line)) {
+                    currentSection = 'experience';
+                    continue;
+                } else if (skillsKeywords.test(line)) {
+                    currentSection = 'skills';
+                    continue;
+                } else if (educationKeywords.test(line)) {
+                    currentSection = 'education';
+                    continue;
+                } else if (certificationKeywords.test(line)) {
+                    currentSection = 'certifications';
+                    continue;
+                }
+                
+                // Add content to current section
+                if (currentSection && !line.match(/@|linkedin\.com|^\d{3}/i)) {
+                    sections[currentSection].push(line);
+                }
+            }
+            
+            // If no sections were found, try to infer from content
+            if (!sections.experience.length && !sections.skills.length && 
+                !sections.education.length && !sections.certifications.length) {
+                
+                // Put most content in experience, try to extract education/skills
+                let allText = lines.join('\n');
+                
+                // Look for degree keywords
+                const degreeMatch = allText.match(/(Bachelor|Master|PhD|Associate|B\.S\.|M\.S\.|MBA).*?(\d{4}|\d{2})/i);
+                if (degreeMatch) {
+                    result.education = degreeMatch[0];
+                    allText = allText.replace(degreeMatch[0], '');
+                }
+                
+                // Everything else goes to experience
+                result.experience = allText.trim();
+            } else {
+                result.experience = sections.experience.join('\n');
+                result.skills = sections.skills.join('\n');
+                result.education = sections.education.join('\n');
+                result.certifications = sections.certifications.join('\n');
+            }
+            
+            return result;
+        }
+
+        function displayProfileForReview() {
+            const reviewDiv = document.getElementById('profile-review');
+            reviewDiv.innerHTML = `
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="review-name" value="${profileData.contact.name || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="review-email" value="${profileData.contact.email || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="review-phone" value="${profileData.contact.phone || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="review-location" value="${profileData.contact.location || ''}">
+                </div>
+                <div class="form-group">
+                    <label>LinkedIn</label>
+                    <input type="url" id="review-linkedin" value="${profileData.contact.linkedin || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Work Experience</label>
+                    <textarea id="review-experience">${profileData.experience || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Skills</label>
+                    <textarea id="review-skills">${profileData.skills || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Education</label>
+                    <textarea id="review-education">${profileData.education || ''}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Certifications</label>
+                    <textarea id="review-certifications">${profileData.certifications || ''}</textarea>
+                </div>
+            `;
+        }
+
+        function editProfile() {
+            // Update profile data from review fields
+            profileData = {
+                contact: {
+                    name: document.getElementById('review-name').value,
+                    email: document.getElementById('review-email').value,
+                    phone: document.getElementById('review-phone').value,
+                    location: document.getElementById('review-location').value,
+                    linkedin: document.getElementById('review-linkedin').value
+                },
+                experience: document.getElementById('review-experience').value,
+                skills: document.getElementById('review-skills').value,
+                education: document.getElementById('review-education').value,
+                certifications: document.getElementById('review-certifications').value
+            };
+        }
+
+        async function confirmProfile() {
+            editProfile(); // Save any changes
+            
+            // Save to storage
+            try {
+                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+            } catch (error) {
+                console.error('Error saving profile:', error);
+            }
+            
+            showSection('job-analysis-section');
+        }
+
+        async function startOver() {
+            if (confirm('This will delete your profile. Are you sure?')) {
+                profileData = null;
+                try {
+                    await safeStorageDelete('job-assistant-profile');
+                } catch (error) {
+                    console.error('Error deleting profile:', error);
+                }
+                showSection('setup-section');
+                hideManualEntry();
+                hideDocumentUpload();
+            }
+        }
+
+        async function analyzeJob() {
+            const jobDesc = document.getElementById('job-description').value.trim();
+            
+            if (!jobDesc) {
+                alert('Please paste a job description');
+                return;
+            }
+
+            // Check if it's a URL
+            if (jobDesc.startsWith('http://') || jobDesc.startsWith('https://') || jobDesc.startsWith('www.')) {
+                const resultDiv = document.getElementById('analysis-result');
+                resultDiv.classList.remove('hidden');
+                resultDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>🔗 URL Detected</strong><br>
+                        I cannot fetch URLs directly from this tool. Please share this URL with me in the chat, and I'll fetch the full job description for you!<br><br>
+                        Alternatively, you can copy and paste the job description text here instead.
+                    </div>
+                `;
+                return;
+            }
+
+            currentJobDescription = jobDesc;
+            
+            const resultDiv = document.getElementById('analysis-result');
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing job match...</p></div>';
+
+            try {
+                const systemPrompt = `You are an experienced recruiter analyzing job match quality using a calibrated scoring system.
+
+SCORING FRAMEWORK (Total = 100 points):
+- Required Qualifications = 80 points (divide evenly among all required quals)
+- Preferred/Bonus Qualifications = 20 points (divide evenly among all preferred quals)
+- Maximum possible score = 100%
+
+PARTIAL CREDIT RULES:
+- Exact match = 100% of points for that qualification
+- Close match (e.g., 9 years when 10+ required, related certification) = 90-95% of points
+- Transferable skill (e.g., fintech ops when data center ops required) = 60-80% of points based on relevance
+- Related but not direct (e.g., AI infrastructure when data center infrastructure required) = 60-70% of points
+- Missing entirely = 0% of points
+
+SCORE INTERPRETATION:
+- 90-100%: Excellent Match - Meets all/nearly all required + strong on preferred
+- 80-89%: Strong Match - Meets all required, some preferred
+- 70-79%: Good Match - Meets most required, competitive candidate
+- 60-69%: Fair Match - Meets minimum required, notable gaps
+- Below 60%: Poor Match - Missing critical requirements
+
+IMPORTANT GUIDELINES:
+1. First, identify which qualifications are REQUIRED vs PREFERRED/BONUS
+2. Calculate required score (out of 80 points) by evaluating each required qualification
+3. Calculate preferred score (out of 20 points) by evaluating each preferred qualification
+4. Sum the two scores for final match percentage
+5. Years of experience: ±1-2 years from requirement should get 90-95% credit
+6. Industry transfers: Strong program/project management skills transfer across industries (fintech → data center, healthcare → tech, etc.)
+7. Focus on ability to DO THE JOB, not perfect credential matching
+8. Certifications listed as "preferred" should not significantly impact score if missing
+
+Candidate Profile:
+${JSON.stringify(profileData, null, 2)}
+
+Return your analysis in this JSON format:
+{
+  "matchScore": <number 0-100, calculated using the framework above>,
+  "jobTitle": "<extracted job title>",
+  "requiredQuals": {
+    "total": <number of required qualifications>,
+    "pointsEarned": <points earned out of 80>,
+    "details": ["brief explanation of scoring for each required qual"]
+  },
+  "preferredQuals": {
+    "total": <number of preferred qualifications>,
+    "pointsEarned": <points earned out of 20>,
+    "details": ["brief explanation of scoring for each preferred qual"]
+  },
+  "strengths": ["strength1", "strength2", ...],
+  "gaps": ["gap1", "gap2", ...],
+  "recommendations": ["rec1", "rec2", ...]
+}`;
+
+                const response = await callClaudeAPI(systemPrompt, `Job Description:\n${jobDesc}`);
+                currentAnalysis = JSON.parse(response);
+                
+                displayAnalysisResults();
+            } catch (error) {
+                console.error('Error analyzing job:', error);
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error analyzing job. Please try again.</div>`;
+            }
+        }
+
+        function displayAnalysisResults() {
+            const score = currentAnalysis.matchScore;
+            let matchClass = 'match-poor';
+            let matchText = 'Poor Match';
+            
+            if (score >= 90) {
+                matchClass = 'match-excellent';
+                matchText = 'Excellent Match';
+            } else if (score >= 80) {
+                matchClass = 'match-good';
+                matchText = 'Strong Match';
+            } else if (score >= 70) {
+                matchClass = 'match-fair';
+                matchText = 'Good Match';
+            } else if (score >= 60) {
+                matchClass = 'match-fair';
+                matchText = 'Fair Match';
+            }
+
+            const resultDiv = document.getElementById('analysis-result');
+            
+            // Build score breakdown HTML
+            let scoreBreakdown = '';
+            if (currentAnalysis.requiredQuals && currentAnalysis.preferredQuals) {
+                const reqPercentage = ((currentAnalysis.requiredQuals.pointsEarned / 80) * 100).toFixed(0);
+                const prefPercentage = currentAnalysis.preferredQuals.total > 0 
+                    ? ((currentAnalysis.preferredQuals.pointsEarned / 20) * 100).toFixed(0) 
+                    : 0;
+                
+                scoreBreakdown = `
+                    <div style="background: #f9fafb; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <h4 style="margin-bottom: 16px;">📊 Score Breakdown</h4>
+                        <div style="margin-bottom: 12px;">
+                            <strong>Required Qualifications:</strong> ${currentAnalysis.requiredQuals.pointsEarned.toFixed(1)}/80 points (${reqPercentage}%)
+                            <div style="font-size: 13px; color: #666; margin-top: 4px;">
+                                ${currentAnalysis.requiredQuals.details.map(d => `• ${d}`).join('<br>')}
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <strong>Preferred Qualifications:</strong> ${currentAnalysis.preferredQuals.pointsEarned.toFixed(1)}/20 points (${prefPercentage}%)
+                            <div style="font-size: 13px; color: #666; margin-top: 4px;">
+                                ${currentAnalysis.preferredQuals.details.map(d => `• ${d}`).join('<br>')}
+                            </div>
+                        </div>
+                        <div style="border-top: 2px solid #667eea; padding-top: 12px; margin-top: 12px;">
+                            <strong>Total Score:</strong> ${score}%
+                        </div>
+                    </div>
+                `;
+            }
+
+            resultDiv.innerHTML = `
+                <h3>Job Match Analysis</h3>
+                <div class="match-badge ${matchClass}">${matchText}: ${score}%</div>
+                
+                ${scoreBreakdown}
+                
+                <h4 style="margin-top: 24px;">✅ Strengths</h4>
+                <ul style="margin: 12px 0; padding-left: 24px;">
+                    ${currentAnalysis.strengths.map(s => `<li>${s}</li>`).join('')}
+                </ul>
+                
+                ${currentAnalysis.gaps && currentAnalysis.gaps.length > 0 ? `
+                    <h4 style="margin-top: 24px;">⚠️ Gaps</h4>
+                    <ul style="margin: 12px 0; padding-left: 24px;">
+                        ${currentAnalysis.gaps.map(g => `<li>${g}</li>`).join('')}
+                    </ul>
+                ` : ''}
+                
+                <h4 style="margin-top: 24px;">💡 Recommendations</h4>
+                <ul style="margin: 12px 0; padding-left: 24px;">
+                    ${currentAnalysis.recommendations.map(r => `<li>${r}</li>`).join('')}
+                </ul>
+                
+                <div class="button-group" style="margin-top: 32px;">
+                    ${currentAnalysis.gaps && currentAnalysis.gaps.length > 0 ? `
+                        <button class="btn-secondary" onclick="editProfileToAddressGaps()">Edit Profile to Address Gaps</button>
+                    ` : ''}
+                    ${score >= 70 ? `
+                        <button class="btn-primary" onclick="generateResume()">Generate Resume</button>
+                        <button class="btn-secondary" onclick="generateCoverLetter()">Generate Cover Letter</button>
+                    ` : `
+                        <button class="btn-secondary" onclick="editProfileToAddressGaps()">Edit Profile</button>
+                        <button class="btn-secondary" onclick="showSection('job-analysis-section')">Try Another Job</button>
+                    `}
+                </div>
+            `;
+        }
+
+        function editProfileToAddressGaps() {
+            // Show the review section pre-filled with current data so user can edit
+            displayProfileForReview();
+            showSection('review-section');
+            
+            // Add a helpful message at the top
+            const reviewSection = document.getElementById('review-section');
+            const existingAlert = reviewSection.querySelector('.edit-gaps-alert');
+            if (!existingAlert) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-info edit-gaps-alert';
+                alert.innerHTML = `
+                    <strong>💡 Edit Your Profile</strong><br>
+                    Update your profile to address the gaps identified in the job analysis. 
+                    Add missing skills, experience, or qualifications that you have but weren't in your original profile.
+                    <br><br>
+                    <button class="btn-secondary" onclick="returnToAnalysis()" style="margin-top: 12px;">Return to Analysis</button>
+                `;
+                reviewSection.insertBefore(alert, reviewSection.querySelector('h2').nextSibling);
+            }
+        }
+
+        function returnToAnalysis() {
+            // Remove the alert
+            const alert = document.querySelector('.edit-gaps-alert');
+            if (alert) alert.remove();
+            
+            // Re-run the analysis with updated profile
+            if (currentJobDescription) {
+                showSection('job-analysis-section');
+                // Automatically re-analyze with updated profile
+                setTimeout(() => {
+                    analyzeJob();
+                }, 500);
+            } else {
+                showSection('job-analysis-section');
+            }
+        }
+
+        async function generateResume() {
+            const resultsContent = document.getElementById('results-content');
+            resultsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating tailored resume...</p></div>';
+            showSection('results-section');
+
+            try {
+                const systemPrompt = `Generate a professional resume tailored to this job. Format it cleanly with clear sections.
+
+Candidate Profile:
+${JSON.stringify(profileData, null, 2)}
+
+Job Analysis:
+${JSON.stringify(currentAnalysis, null, 2)}
+
+IMPORTANT: Write naturally and professionally. Avoid AI clichés like "spearheaded", "game-changing", excessive em dashes, or overly enthusiastic language.`;
+
+                const resume = await callClaudeAPI(systemPrompt, `Job Description:\n${currentJobDescription}`);
+                
+                // Save to generated files
+                addGeneratedFile('resume', currentAnalysis.jobTitle, resume);
+                
+                resultsContent.innerHTML = `
+                    <h3>Your Tailored Resume</h3>
+                    <div class="document-output">${resume}</div>
+                    <div class="button-group" style="margin-top: 24px;">
+                        <button class="btn-secondary" onclick="copyToClipboard(\`${resume.replace(/`/g, '\\`')}\`)">Copy Text</button>
+                        <button class="btn-primary" onclick="downloadResumeAsDOCX()">Download as DOCX</button>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error generating resume:', error);
+                resultsContent.innerHTML = `<div class="alert alert-danger">Error generating resume. Please try again.</div>`;
+            }
+        }
+
+        async function generateCoverLetter() {
+            const resultsContent = document.getElementById('results-content');
+            resultsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating cover letter...</p></div>';
+            showSection('results-section');
+
+            try {
+                const systemPrompt = `Generate a compelling cover letter for this job. Be authentic and professional.
+
+Candidate Profile:
+${JSON.stringify(profileData, null, 2)}
+
+Job Analysis:
+${JSON.stringify(currentAnalysis, null, 2)}
+
+IMPORTANT: Write in a natural, conversational tone. Avoid AI clichés, excessive enthusiasm, or generic corporate speak. Be specific and genuine.`;
+
+                const coverLetter = await callClaudeAPI(systemPrompt, `Job Description:\n${currentJobDescription}`);
+                
+                // Save to generated files
+                addGeneratedFile('coverLetter', currentAnalysis.jobTitle, coverLetter);
+                
+                resultsContent.innerHTML = `
+                    <h3>Your Cover Letter</h3>
+                    <div class="document-output">${coverLetter}</div>
+                    <div class="button-group" style="margin-top: 24px;">
+                        <button class="btn-secondary" onclick="copyToClipboard(\`${coverLetter.replace(/`/g, '\\`')}\`)">Copy Text</button>
+                        <button class="btn-primary" onclick="downloadCoverLetterAsDOCX()">Download as DOCX</button>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error generating cover letter:', error);
+                resultsContent.innerHTML = `<div class="alert alert-danger">Error generating cover letter. Please try again.</div>`;
+            }
+        }
+
+        async function downloadResumeAsDOCX() {
+            // Get the latest resume from the results section
+            const documentOutput = document.querySelector('#results-section .document-output');
+            if (!documentOutput) {
+                alert('No resume found to download. Please generate a resume first.');
+                return;
+            }
+            
+            const resumeText = documentOutput.textContent;
+            
+            try {
+                // Check if JSZip loaded
+                if (typeof JSZip === 'undefined') {
+                    alert('Required library not loaded. Try refreshing the page.\n\nAlternative: Use "Copy Text" button and paste into Word.');
+                    return;
+                }
+
+                console.log('Creating DOCX with JSZip...');
+                
+                const zip = new JSZip();
+                
+                // DOCX structure - [Content_Types].xml
+                zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+                
+                // _rels/.rels
+                zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+                
+                // word/_rels/document.xml.rels
+                const wordFolder = zip.folder('word');
+                wordFolder.folder('_rels').file('document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`);
+                
+                // Convert text to Word XML paragraphs
+                const lines = resumeText.split('\n');
+                const paragraphs = lines.map(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed) {
+                        return '<w:p><w:pPr><w:spacing w:after="100"/></w:pPr></w:p>';
+                    }
+                    
+                    const isHeader = trimmed === trimmed.toUpperCase() && trimmed.length < 50;
+                    const fontSize = isHeader ? 28 : 22;
+                    const spacing = isHeader ? 240 : 120;
+                    
+                    // Escape XML special characters
+                    const escaped = trimmed
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&apos;');
+                    
+                    return `<w:p>
+      <w:pPr>
+        <w:spacing w:after="${spacing}"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:sz w:val="${fontSize}"/>
+          ${isHeader ? '<w:b/>' : ''}
+        </w:rPr>
+        <w:t xml:space="preserve">${escaped}</w:t>
+      </w:r>
+    </w:p>`;
+                }).join('');
+                
+                // word/document.xml
+                wordFolder.file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${paragraphs}
+  </w:body>
+</w:document>`);
+                
+                console.log('Generating blob...');
+                const blob = await zip.generateAsync({type: 'blob'});
+                console.log('Blob created, size:', blob.size);
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${profileData.contact.name.replace(/\s+/g, '_')}_Resume.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('Download triggered successfully');
+
+            } catch (error) {
+                console.error('DOCX Error:', error);
+                alert(`Error creating DOCX: ${error.message}\n\nPlease use "Copy Text" button instead and paste into Word.`);
+            }
+        }
+
+        async function downloadCoverLetterAsDOCX() {
+            const documentOutput = document.querySelector('#results-section .document-output');
+            if (!documentOutput) {
+                alert('No cover letter found to download. Please generate a cover letter first.');
+                return;
+            }
+            
+            const coverLetterText = documentOutput.textContent;
+            
+            try {
+                if (typeof JSZip === 'undefined') {
+                    alert('Required library not loaded. Try refreshing the page.\n\nAlternative: Use "Copy Text" button and paste into Word.');
+                    return;
+                }
+
+                console.log('Creating DOCX with JSZip...');
+                
+                const zip = new JSZip();
+                
+                // DOCX structure
+                zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+                
+                zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+                
+                const wordFolder = zip.folder('word');
+                wordFolder.folder('_rels').file('document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`);
+                
+                // Convert paragraphs to Word XML
+                const textParagraphs = coverLetterText.split('\n\n').filter(p => p.trim());
+                const xmlParagraphs = textParagraphs.map(para => {
+                    // Escape XML special characters
+                    const escaped = para.trim()
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&apos;');
+                    
+                    return `<w:p>
+      <w:pPr>
+        <w:spacing w:after="200"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:sz w:val="22"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escaped}</w:t>
+      </w:r>
+    </w:p>`;
+                }).join('');
+                
+                wordFolder.file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${xmlParagraphs}
+  </w:body>
+</w:document>`);
+                
+                console.log('Generating blob...');
+                const blob = await zip.generateAsync({type: 'blob'});
+                console.log('Blob created, size:', blob.size);
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${profileData.contact.name.replace(/\s+/g, '_')}_CoverLetter.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('Download triggered successfully');
+
+            } catch (error) {
+                console.error('DOCX Error:', error);
+                alert(`Error creating DOCX: ${error.message}\n\nPlease use "Copy Text" button instead and paste into Word.`);
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Error copying to clipboard:', err);
+                alert('Failed to copy. Please select and copy manually.');
+            });
+        }
+
+        function stripMarkdownCodeFences(text) {
+            // Remove ```json or ``` code fences that Claude sometimes adds
+            return text
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/, '')
+                .replace(/\s*```$/, '')
+                .trim();
+        }
+
+        async function callClaudeAPI(systemPrompt, userMessage) {
+            const netlifyFunctionUrl = 'https://curious-rugelach-e5ffb8.netlify.app/.netlify/functions/claude-proxy';
+            
+            const response = await fetch(netlifyFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    systemPrompt: systemPrompt,
+                    userMessage: userMessage,
+                    maxTokens: 4000
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const rawText = data.content[0].text;
+            return stripMarkdownCodeFences(rawText);
+        }
+    </script>
+</body>
+</html>
