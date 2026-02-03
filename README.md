@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/25029165/README.md)
+[README.md](https://github.com/user-attachments/files/25029224/README.md)
 # SmartApply - AI-Powered Job Application Assistant
 
 **Version:** 2.0  
@@ -103,12 +103,12 @@ SmartApply is an AI-powered job application assistant that helps you create tail
 ### Installation
 
 #### Option 1: Use Hosted Version
-Visit: [Your GitHub Pages URL]
+Visit: **https://charissemorton.github.io/smartapply/**
 
 #### Option 2: Run Locally
 ```bash
 # Clone or download the repository
-git clone https://github.com/yourusername/smartapply.git
+git clone https://github.com/CharisseMorton/smartapply.git
 
 # Navigate to directory
 cd smartapply
@@ -415,7 +415,8 @@ Before generating documents, you acknowledge:
 
 - **Check Troubleshooting Section** - Most common issues covered above
 - **Browser Console** - Press F12 to see detailed error messages
-- **GitHub Issues** - Report bugs or request features
+- **GitHub Issues** - [Report bugs or request features](https://github.com/CharisseMorton/smartapply/issues)
+- **GitHub Repository** - [View source code](https://github.com/CharisseMorton/smartapply)
 
 ### Feedback
 
@@ -502,7 +503,7 @@ Built to help job seekers present their authentic qualifications effectively whi
 
 **In under 60 seconds:**
 
-1. **Visit the app** → [Your URL]
+1. **Visit the app** → **https://charissemorton.github.io/smartapply/**
 2. **Upload resume** → Click "Upload Resume"
 3. **Review profile** → Check extracted info
 4. **Paste job description** → Go to "Analyze Job"
@@ -535,7 +536,7 @@ Built to help job seekers present their authentic qualifications effectively whi
 
 ---
 
-**Ready to streamline your job search? [Get Started](#getting-started)** 🚀
+**Ready to streamline your job search? [Get Started →](https://charissemorton.github.io/smartapply/)** 🚀
 
 ---
 
