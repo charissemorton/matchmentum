@@ -609,15 +609,13 @@
             background: rgba(59,130,246,0.2); color: #93c5fd;
         }
         .session-date { font-size: 12px; color: rgba(255,255,255,0.3); }
-        .resume-again-btn {
-            display: inline-flex; align-items: center; gap: 7px;
-            font-size: 13px; font-weight: 700; color: #60a5fa;
-            background: rgba(59,130,246,0.15); border: none;
-            padding: 9px 16px; border-radius: 8px; cursor: pointer;
-            font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+        .last-session-score {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 700; color: #93c5fd;
+            background: rgba(59,130,246,0.15); border-radius: 8px;
+            padding: 6px 12px; margin-top: 4px;
         }
-        .resume-again-btn:hover { background: rgba(59,130,246,0.25); }
-        .resume-again-btn svg { width: 14px; height: 14px; stroke: currentColor; }
+        .last-session-score-num { font-size: 16px; font-weight: 800; color: #fff; }
 
         .analyze-card {
             background: white; border-radius: 16px; padding: 28px;
@@ -3256,10 +3254,7 @@
                                 <span class="session-badge" id="lastSessionBadge"></span>
                                 <span class="session-date" id="lastSessionDate"></span>
                             </div>
-                            <button class="resume-again-btn" onclick="showSection('job-analysis-section')">
-                                <i data-lucide="edit-3"></i>
-                                Analyze a new role
-                            </button>
+                            <div id="lastSessionScore" class="last-session-score hidden"></div>
                         </div>
                         <div class="analyze-card">
                             <div class="analyze-card-label">New Analysis</div>
@@ -4339,6 +4334,18 @@ async function getUserSubscription() {
                             month: 'short', day: 'numeric', year: 'numeric'
                         });
                     }
+
+                    // Score: find most recent resume with a score
+                    const scoreEl = document.getElementById('lastSessionScore');
+                    if (scoreEl) {
+                        const lastResume = sorted.find(f => f.type === 'resume' && f.atsScore != null);
+                        if (lastResume) {
+                            scoreEl.innerHTML = `<span class="last-session-score-num">${lastResume.atsScore}</span> Readiness Score`;
+                            scoreEl.classList.remove('hidden');
+                        } else {
+                            scoreEl.classList.add('hidden');
+                        }
+                    }
                 } else {
                     // Has profile but no docs yet — hide last session card
                     const card = document.getElementById('lastSessionCard');
@@ -4671,6 +4678,7 @@ async function getUserSubscription() {
                             type: doc.document_type === 'resume' ? 'resume' : 'coverLetter',
                             jobTitle: doc.job_title,
                             company: doc.company || null,
+                            atsScore: doc.ats_score || null,
                             content: doc.content,
                             timestamp: doc.created_at,
                             dateStr: new Date(doc.created_at).toLocaleString()
@@ -5452,6 +5460,7 @@ async function getUserSubscription() {
                             type: doc.document_type === 'resume' ? 'resume' : 'coverLetter',
                             jobTitle: doc.job_title,
                             company: doc.company || null,
+                            atsScore: doc.ats_score || null,
                             content: doc.content,
                             timestamp: doc.created_at,
                             dateStr: new Date(doc.created_at).toLocaleString()
