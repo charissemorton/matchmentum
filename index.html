@@ -8286,41 +8286,18 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
                 </div>`;
 
             try {
-                // Build background context entries from gap answers
-                const questions = document.querySelectorAll('[id^="gap-answer-"]');
-                const newContextLines = [];
-
-                questions.forEach((textarea, i) => {
-                    const answer = textarea.value.trim();
-                    if (!answer) return;
-                    const when = document.getElementById(`gap-when-${i}`)?.value.trim() || '';
-                    const role = document.getElementById(`gap-role-${i}`)?.value.trim() || '';
-                    const context = [role, when].filter(Boolean).join(', ');
-                    const entry = context ? `${answer} (${context})` : answer;
-                    newContextLines.push(entry);
-                });
-
-                // Accumulate into backgroundContext — never overwrite
-                if (newContextLines.length > 0) {
-                    const addition = newContextLines.join('\n');
+                // Use answersText directly — DOM textareas are gone by the time this runs
+                if (answersText) {
                     profileData.backgroundContext = profileData.backgroundContext
-                        ? profileData.backgroundContext + '\n\n' + addition
-                        : addition;
+                        ? profileData.backgroundContext + '\n\n' + answersText
+                        : answersText;
                 }
 
                 await saveProfileToCloud(profileData);
-                closeGapModal();
                 const backBtn = document.getElementById('gap-back-btn');
                 if (backBtn) backBtn.remove();
-                const gapArea = document.getElementById('gap-context-area');
-                if (gapArea) {
-                    gapArea.innerHTML = `
-                        <span id="gap-pill" style="display:inline-flex; align-items:center; gap:6px; background:#FAEEDA; color:#633806; border:1px solid #EF9F27; border-radius:20px; padding:5px 14px; font-size:13px; font-weight:500;">
-                            ✓ Background Context updated
-                            <span onclick="clearGapPill()" style="cursor:pointer; margin-left:4px; font-size:14px; line-height:1;" title="Dismiss">✕</span>
-                        </span>`;
-                }
                 showToast('Your background context has been added to your profile.', 'success');
+                startNewJobAnalysis();
             } catch(e) {
                 closeGapModal();
                 showToast('Something went wrong updating your profile. Please try again.', 'error');
