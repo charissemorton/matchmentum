@@ -6715,6 +6715,9 @@ Return ONLY the JSON.`;
             merged.certifications = mergeListFields(profile1.certifications, profile2.certifications);
             merged.projects = mergeListFields(profile1.projects, profile2.projects);
             
+            // Preserve backgroundContext — prefer existing, fall back to incoming
+            merged.backgroundContext = profile1.backgroundContext || profile2.backgroundContext || '';
+            
             return merged;
         }
 
@@ -7089,7 +7092,8 @@ Return ONLY the JSON.`;
                 skills: skills,
                 education: education,
                 certifications: certifications,
-                projects: projects
+                projects: projects,
+                backgroundContext: profileData?.backgroundContext || ''
             };
 
             // Save to storage
@@ -7590,7 +7594,8 @@ Return ONLY the JSON.`;
                     skills: profile.skills || '',
                     education: profile.education || '',
                     certifications: profile.certifications || '',
-                    projects: profile.projects || ''
+                    projects: profile.projects || '',
+                    backgroundContext: profile.backgroundContext || ''
                 };
             }
             
