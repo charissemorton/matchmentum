@@ -4287,9 +4287,9 @@ async function getUserSubscription() {
                             analyses_used: 0,
                             analyses_limit: null,
                             resumes_used: 0,
-                            resumes_limit: TIER_LIMITS.trial.resumes,
+                            resumes_limit: TIER_LIMITS.free.resumes,
                             covers_used: 0,
-                            covers_limit: TIER_LIMITS.trial.covers,
+                            covers_limit: TIER_LIMITS.free.covers,
                             trial_started_at: trialStartedAt,
                             trial_expires_at: trialExpiresAt
                         })
@@ -4465,7 +4465,7 @@ async function getUserSubscription() {
                 message = notAvailableMessages[actionType] || `Your <strong>${tier.charAt(0).toUpperCase() + tier.slice(1)}</strong> plan doesn't include ${actionLabel}. Keep the momentum — upgrade to unlock this feature.`;
             } else {
                 title = "You're Building Momentum";
-                message = `You've used all <strong>${limit} ${actionLabel}</strong> in your trial. Keep the momentum — upgrade to get more out of every application.`;
+                message = `You've used all <strong>${limit === null ? 'Unlimited' : limit} ${actionLabel}</strong> in your trial. Keep the momentum — upgrade to get more out of every application.`;
             }
             
             // Build upgrade options based on current tier
@@ -4752,8 +4752,8 @@ async function getUserSubscription() {
                 const trialDaysLeft = subscription._trialDaysLeft ?? null;
                 const isTrial = tier === 'free' && subscription.trial_expires_at;
 
-                const tierLabels = { free: isTrial ? (isTrialExpired ? 'Expired' : 'Trial') : 'Trial', lite: 'Lite', pro: 'Pro' };
-                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨' };
+                const tierLabels = { free: isTrial ? (isTrialExpired ? 'Expired' : 'Trial') : 'Trial', lite: 'Lite', pro: 'Pro', beta: 'Beta' };
+                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨', beta: '🧪' };
                 const tierLabel = tierLabels[tier] || 'Trial';
 
                 // --- Update sidebar tier badge ---
@@ -4772,7 +4772,7 @@ async function getUserSubscription() {
                 // Show/hide upgrade link (hide for Pro)
                 const upgradeLink = document.getElementById('sidebarUpgradeLink');
                 if (upgradeLink) {
-                    upgradeLink.style.display = tier === 'pro' ? 'none' : 'inline';
+                    upgradeLink.style.display = (tier === 'pro' || tier === 'beta') ? 'none' : 'inline';
                 }
 
                 // --- Trial countdown in sidebar ---
@@ -4793,7 +4793,7 @@ async function getUserSubscription() {
                 // --- Update user status text in profile dropdown ---
                 const userStatus = document.getElementById('userTierStatus');
                 if (userStatus) {
-                    const isPaidTier = tier === 'lite' || tier === 'pro';
+                    const isPaidTier = tier === 'lite' || tier === 'pro' || tier === 'beta';
                     userStatus.textContent = tierEmojis[tier] + ' ' + tierLabel + (isPaidTier ? ' Plan' : '');
                 }
                 
