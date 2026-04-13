@@ -4,23 +4,44 @@ All notable changes to MatchMentum are documented here.
 Format: **Added** (new features) | **Changed** (modifications to existing) | **Fixed** (bug fixes) | **Removed** (deleted functionality)
 
 Hotfixes ship immediately as patch releases (e.g. v1.0.1) outside the regular bi-weekly cycle.  
-Scheduled releases ship every two weeks on Wednesdays.
+Scheduled releases ship every two weeks on Saturdays.
 
 ---
 
-## [Unreleased] — v1.1.0 · Target: 2026-03-28
+## [Unreleased] — v1.2.0 · Target: 2026-04-11
 
 > Items logged here since last release. Move to a versioned section on release day.
 
+---
+
+## [v1.1.0] — 2026-03-28 · Gap Context Modal + Background Context Routing
+
+### Added
+- Gap context guided modal: replaces freeform textarea with Claude-generated questions based on gaps identified in the job analysis (capped at 4 questions)
+- Questions are specific to the gaps in the user's resume vs. the job description — not generic
+- Optional When and Role/context fields per question
+- Confirmation screen shows plain-language summary of what will be added to profile before saving
+- Pill indicator appears after confirming: "✓ Background Context updated"
+- Background Context field added to profile review screen below Certifications — editable, persists to cloud
+- Staging environment: matchmentum-staging.netlify.app deployed from staging branch, auto-deploys on push
+
 ### Changed
-- `trial` tier removed from `TIER_LIMITS` — confirmed dead code, no users assigned this tier in production
-- `beta` tier added to `TIER_LIMITS` with unlimited access matching Pro — beta users excluded from MRR calculations
-- Landing page hero H1 updated to brand tagline: "Written for the job. Ready for the system." (replaced "Resumes tailored to every job you want")
+- Gap answers now write to dedicated `profileData.backgroundContext` field (previously appended to `profileData.experience` where they were silently ignored)
+- Background context accumulates across modal submissions — does not overwrite
+- `confirmProfile()` explicitly includes `backgroundContext` in profile rebuild to prevent silent data loss on save
+- Beta tier now displays correctly in sidebar: badge shows "Beta", upgrade link hidden, usage bars show unlimited
+- Scheduled release cadence updated from Wednesdays to Saturdays
+
+### Fixed
+- Background context now injects into all 4 generation prompts (Chunk 1 summary, Chunk 2 recent experience, Chunk 3 older experience, cover letter) with candidate-confirmed trust signal
+- Dead `TIER_LIMITS.trial` reference removed from `getUserSubscription()` — was causing new user onboarding to fail with "Cannot read properties of undefined" error
+- Upgrade modal no longer displays "null job analyses" — null limits now render as "Unlimited"
+- Beta tier accounts now correctly show unlimited usage in sidebar and account modal
 
 ### Database
-- `subscriptions_tier_check` constraint updated to include `beta` as a valid tier value
-- 4 beta tester accounts migrated from `pro` to `beta` tier (users with no Stripe subscription ID)
-- `beta` tier now accepted by Supabase schema
+- All beta tester subscription rows updated: `resumes_limit`, `covers_limit`, `analyses_limit` set to null (unlimited)
+- Staging test account (`charisselenee@icloud.com`) added as beta tier for staging testing
+- Staging URL (`https://matchmentum-staging.netlify.app`) added to Supabase Auth redirect URL allowlist
 
 ---
 
@@ -98,23 +119,19 @@ Scheduled releases ship every two weeks on Wednesdays.
 - Cover letter generation prompt comprehensively revised
 - Guardrails added against AI-detectable patterns: banned opener types (subordinate clauses, first-person declaratives, mirrored JD language), banned phrases list, banned closings, banned greetings, em dash and semicolon restrictions, metrics density rules
 
-### Gap Context
-- Freeform gap context textarea added to analysis results: appears when gaps are identified, optional, routes into resume generation
-- Gap context passes to Chunk 1 (summary) and Chunk 2 (recent experience)
-- Gap context does NOT yet route to Chunk 3 (older experience) — routing fix pending
-
 ### Brand & Copy
 - Tagline updated to "Written for the job. Ready for the system." (replaced "Build Career Momentum Fast")
 - Page title and meta description updated
 - Landing page hero H1 updated to match tagline (replaced "Resumes tailored to every job you want")
 - `MatchMentum-Week1-Graphics.html` updated with new tagline
 
+### Tier & Subscription
+- `trial` tier removed from `TIER_LIMITS` — confirmed dead code, no users assigned this tier in production
+- `beta` tier added to `TIER_LIMITS` with unlimited access matching Pro — beta users excluded from MRR calculations
+- `subscriptions_tier_check` constraint updated to include `beta` as a valid tier value
+- 4 beta tester accounts migrated from `pro` to `beta` tier (users with no Stripe subscription ID)
+
 ---
-
-## Planned — Scoped and Approved
-
-- **Gap context guided modal:** Replace freeform textarea with Claude-generated questions from identified gaps (capped at 4), saved-state pill indicator — implement together with routing fix below
-- **Gap context Chunk 3 routing:** Pass gap context to `generateOlderExperience` function (currently receives no gap context parameter)
 
 ## Under Consideration — Not Yet Decided
 
