@@ -4785,8 +4785,8 @@ async function getUserSubscription() {
                 const trialDaysLeft = subscription._trialDaysLeft ?? null;
                 const isTrial = tier === 'free' && subscription.trial_expires_at;
 
-                const tierLabels = { free: isTrial ? (isTrialExpired ? 'Expired' : 'Trial') : 'Trial', lite: 'Lite', pro: 'Pro' };
-                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨' };
+                const tierLabels = { free: isTrial ? (isTrialExpired ? 'Expired' : 'Trial') : 'Trial', lite: 'Lite', pro: 'Pro', beta: 'Beta' };
+                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨', beta: '✨' };
                 const tierLabel = tierLabels[tier] || 'Trial';
 
                 // --- Update sidebar tier badge ---
@@ -4798,7 +4798,9 @@ async function getUserSubscription() {
                     } else if (isTrial) {
                         sidebarBadge.className = 'sidebar-tier-badge tier-trial';
                     } else {
-                        sidebarBadge.className = 'sidebar-tier-badge tier-' + tier;
+                        // Map beta to pro styling (same unlimited access, same badge appearance)
+                        const badgeClass = tier === 'beta' ? 'tier-pro' : 'tier-' + tier;
+                        sidebarBadge.className = 'sidebar-tier-badge ' + badgeClass;
                     }
                 }
 
@@ -4826,7 +4828,7 @@ async function getUserSubscription() {
                 // --- Update user status text in profile dropdown ---
                 const userStatus = document.getElementById('userTierStatus');
                 if (userStatus) {
-                    const isPaidTier = tier === 'lite' || tier === 'pro';
+                    const isPaidTier = tier === 'lite' || tier === 'pro' || tier === 'beta';
                     userStatus.textContent = tierEmojis[tier] + ' ' + tierLabel + (isPaidTier ? ' Plan' : '');
                 }
                 
@@ -6480,13 +6482,6 @@ async function getUserSubscription() {
                 displayProfileForReview();
             }
 
-            // Clear JD textarea on each visit so users start fresh
-            if (sectionId === 'job-analysis-section') {
-                const textarea = document.getElementById('job-description');
-                if (textarea) textarea.value = '';
-                currentJobDescription = null;
-            }
-
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -7153,7 +7148,8 @@ Return ONLY the JSON.`;
             if (profileData) {
                 fields.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el && profileData[id]) el.value = profileData[id];
+                    const value = id === 'experience' ? experienceToText(profileData[id]) : profileData[id];
+                    if (el && value) el.value = value;
                 });
             }
             try {
@@ -7759,7 +7755,7 @@ Return ONLY the JSON.`;
             const phone = profileData.phone || '';
             const location = profileData.location || '';
             const linkedin = profileData.linkedin || '';
-            const experienceText = profileData.experience || '';
+            const experienceText = experienceToText(profileData.experience);
             const skillsText = profileData.skills || '';
             const educationText = profileData.education || '';
             const certificationsText = profileData.certifications || '';
@@ -7905,6 +7901,25 @@ Return ONLY the JSON.`;
             );
         }
 
+        /**
+         * Normalise experience to a plain string regardless of whether it was
+         * stored as a free-text string or as a structured array of job objects.
+         */
+        function experienceToText(experience) {
+            if (!experience) return '';
+            if (typeof experience === 'string') return experience;
+            if (Array.isArray(experience)) {
+                return experience.map(e => {
+                    const parts = [];
+                    if (e.title || e.company) parts.push([e.title, e.company].filter(Boolean).join(' at '));
+                    if (e.startDate || e.endDate) parts.push([e.startDate, e.endDate].filter(Boolean).join(' – '));
+                    if (e.description) parts.push(e.description);
+                    return parts.join('\n');
+                }).join('\n\n');
+            }
+            return String(experience);
+        }
+
         async function analyzeJob() {
             const jobDesc = document.getElementById('job-description').value.trim();
             
@@ -7920,7 +7935,7 @@ Return ONLY the JSON.`;
             }
 
             // Check if profile has actual content (not just empty fields)
-            const hasContent = (profileData.experience && profileData.experience.trim()) ||
+            const hasContent = experienceToText(profileData.experience).trim() ||
                              (profileData.skills && profileData.skills.trim()) ||
                              (profileData.education && profileData.education.trim()) ||
                              (profileData.certifications && profileData.certifications.trim());
@@ -8137,6 +8152,13 @@ Return your analysis in this JSON format:
                 updateUsageDisplay();
 
                 displayAnalysisResults();
+
+                // Clear JD textarea now that analysis is complete.
+                // Spec: JD persists through navigation, clears only after a successful analysis.
+                if (!isGapReanalysis) {
+                    const jdTextarea = document.getElementById('job-description');
+                    if (jdTextarea) jdTextarea.value = '';
+                }
             } catch (error) {
                 console.error('Error analyzing job:', error);
                 resultDiv.innerHTML = `<div class="alert alert-danger">Error analyzing job. Please try again.</div>`;
