@@ -382,147 +382,6 @@
             top: 0;
         }
 
-        /* === PROFILE REVIEW CARDS === */
-        .profile-cards { display: flex; flex-direction: column; gap: 16px; }
-        .role-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .role-card-body { padding: 16px 20px; }
-        .role-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .role-card-badge {
-            font-size: 11px;
-            font-weight: 600;
-            color: #64748b;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .role-card-badge .dot {
-            width: 7px; height: 7px; border-radius: 50%; background: #2563eb; display: inline-block;
-        }
-        .role-card .remove-btn {
-            font-size: 12px; color: #ef4444; background: none; border: none;
-            cursor: pointer; padding: 4px 8px; border-radius: 6px;
-            font-weight: 600; font-family: 'DM Sans', sans-serif;
-        }
-        .role-card .remove-btn:hover { background: #fef2f2; }
-        .role-card .field-row {
-            display: grid;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        .role-card .field-row.two-col { grid-template-columns: 1fr 1fr; }
-        .role-card .field-row.three-col { grid-template-columns: 1fr 1fr 1fr; }
-        .role-card .field-row.cert-col { grid-template-columns: 2fr 1fr 1fr; }
-        .role-card .field-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #64748b;
-            display: block;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .role-card .field-input {
-            width: 100%;
-            font-size: 14px;
-            font-weight: 400;
-            padding: 8px 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #ffffff;
-            color: #0f172a;
-            font-family: 'DM Sans', sans-serif;
-            box-shadow: none;
-            transition: border-color 0.2s;
-        }
-        .role-card .field-input:focus {
-            outline: none;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-            transform: none;
-        }
-        .role-card .field-input.empty-field {
-            color: #94a3b8;
-            font-style: italic;
-            background: #f8fafc;
-        }
-        .role-card textarea.field-input {
-            min-height: 80px;
-            resize: vertical;
-            line-height: 1.6;
-            padding-top: 8px;
-        }
-        /* Conflict card */
-        .role-card.conflict {
-            border: 2px solid #f59e0b;
-        }
-        .conflict-banner {
-            background: #fffbeb;
-            padding: 10px 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid #fde68a;
-            font-size: 13px;
-            font-weight: 500;
-            color: #92400e;
-        }
-        .conflict-banner svg { flex-shrink: 0; }
-        .conflict-actions {
-            border-top: 1px solid #e2e8f0;
-            padding: 12px 20px;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .conflict-actions button {
-            font-size: 13px;
-            font-weight: 600;
-            padding: 7px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'DM Sans', sans-serif;
-            border: 1px solid #e2e8f0;
-            background: #ffffff;
-            color: #0f172a;
-            letter-spacing: 0;
-        }
-        .conflict-actions button:hover { background: #f8fafc; transform: none; }
-        .conflict-actions button.merge-btn {
-            background: #2563eb;
-            color: #ffffff;
-            border: none;
-        }
-        .conflict-actions button.merge-btn:hover { background: #1d4ed8; }
-        .profile-cards .section-label {
-            font-size: 13px;
-            font-weight: 700;
-            color: #334155;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 20px 0 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .profile-cards .section-label:first-child { margin-top: 0; }
-        .add-entry-btn {
-            font-size: 13px; font-weight: 600; color: #2563eb; background: #eff6ff;
-            border: 1px dashed #bfdbfe; border-radius: 8px; padding: 10px 16px;
-            cursor: pointer; width: 100%; font-family: 'DM Sans', sans-serif;
-        }
-        .add-entry-btn:hover { background: #dbeafe; transform: none; }
-
         /* === 3. SOPHISTICATED BUTTONS === */
         .button-group {
             display: flex;
@@ -3431,7 +3290,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" 
-                           onclick="if(profileData) displayProfileForReview(); showSection('review-section')" 
+                           onclick="showSection('review-section')" 
                            aria-label="Review Profile - Review and edit your profile">
                             <i data-lucide="check-circle" class="nav-icon" aria-hidden="true"></i>
                             <span>Review Profile</span>
@@ -3741,7 +3600,7 @@
             <!-- Job Analysis Section -->
             <div id="job-analysis-section" class="section">
                 <div class="nav-buttons">
-                    <button class="btn-secondary" onclick="if(profileData) displayProfileForReview(); showSection('review-section')">← Back to Profile</button>
+                    <button class="btn-secondary" onclick="showSection('review-section')">← Back to Profile</button>
                     <button class="btn-secondary" onclick="showGeneratedFiles()">📁 View Generated Files</button>
                 </div>
                 
@@ -4428,9 +4287,9 @@ async function getUserSubscription() {
                             analyses_used: 0,
                             analyses_limit: null,
                             resumes_used: 0,
-                            resumes_limit: TIER_LIMITS.free.resumes,
+                            resumes_limit: TIER_LIMITS.trial.resumes,
                             covers_used: 0,
-                            covers_limit: TIER_LIMITS.free.covers,
+                            covers_limit: TIER_LIMITS.trial.covers,
                             trial_started_at: trialStartedAt,
                             trial_expires_at: trialExpiresAt
                         })
@@ -4567,6 +4426,39 @@ async function getUserSubscription() {
         }
         
         /**
+         * Log a completed analysis run to analyses_log.
+         * Non-blocking: errors are swallowed so they never interrupt the UI.
+         * @param {Object} analysis - The parsed Claude response (currentAnalysis)
+         */
+        async function logAnalysis(analysis) {
+            try {
+                const supabase = getSupabase();
+                if (!supabase) return;
+                // getSession reads local storage — reliable in fire-and-forget context
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user) return;
+
+                const { error } = await supabase.from('analyses_log').insert({
+                    user_id:     session.user.id,
+                    job_title:   analysis?.jobTitle   ?? null,
+                    company:     analysis?.company    ?? null,
+                    match_score: analysis?.matchScore != null ? Math.round(analysis.matchScore) : null
+                    // created_at is set server-side by DEFAULT now()
+                });
+
+                if (error) {
+                    console.error('analyses_log insert error:', error);
+                    if (DEBUG) showToast('⚠️ analyses_log insert failed: ' + error.message, 'error');
+                } else {
+                    debugLog('✅ Analysis logged to analyses_log');
+                }
+            } catch (err) {
+                console.error('logAnalysis error:', err);
+                if (DEBUG) showToast('⚠️ analyses_log exception: ' + err.message, 'error');
+            }
+        }
+
+        /**
          * Show the upgrade modal when a user hits their limit
          * @param {string} actionType - 'analyses', 'resumes', or 'covers'
          * @param {string} reason - 'not_available' or 'limit_reached'
@@ -4606,7 +4498,7 @@ async function getUserSubscription() {
                 message = notAvailableMessages[actionType] || `Your <strong>${tier.charAt(0).toUpperCase() + tier.slice(1)}</strong> plan doesn't include ${actionLabel}. Keep the momentum — upgrade to unlock this feature.`;
             } else {
                 title = "You're Building Momentum";
-                message = `You've used all <strong>${limit === null ? 'Unlimited' : limit} ${actionLabel}</strong> in your trial. Keep the momentum — upgrade to get more out of every application.`;
+                message = `You've used all <strong>${limit} ${actionLabel}</strong> in your trial. Keep the momentum — upgrade to get more out of every application.`;
             }
             
             // Build upgrade options based on current tier
@@ -4894,7 +4786,7 @@ async function getUserSubscription() {
                 const isTrial = tier === 'free' && subscription.trial_expires_at;
 
                 const tierLabels = { free: isTrial ? (isTrialExpired ? 'Expired' : 'Trial') : 'Trial', lite: 'Lite', pro: 'Pro', beta: 'Beta' };
-                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨', beta: '🧪' };
+                const tierEmojis = { free: isTrial ? '⏱' : '⏱', lite: '⚡', pro: '✨', beta: '✨' };
                 const tierLabel = tierLabels[tier] || 'Trial';
 
                 // --- Update sidebar tier badge ---
@@ -4906,14 +4798,16 @@ async function getUserSubscription() {
                     } else if (isTrial) {
                         sidebarBadge.className = 'sidebar-tier-badge tier-trial';
                     } else {
-                        sidebarBadge.className = 'sidebar-tier-badge tier-' + tier;
+                        // Map beta to pro styling (same unlimited access, same badge appearance)
+                        const badgeClass = tier === 'beta' ? 'tier-pro' : 'tier-' + tier;
+                        sidebarBadge.className = 'sidebar-tier-badge ' + badgeClass;
                     }
                 }
 
                 // Show/hide upgrade link (hide for Pro)
                 const upgradeLink = document.getElementById('sidebarUpgradeLink');
                 if (upgradeLink) {
-                    upgradeLink.style.display = (tier === 'pro' || tier === 'beta') ? 'none' : 'inline';
+                    upgradeLink.style.display = tier === 'pro' ? 'none' : 'inline';
                 }
 
                 // --- Trial countdown in sidebar ---
@@ -5784,7 +5678,7 @@ async function getUserSubscription() {
                 .trim();
         }
 
-        async function callClaudeAPI(systemPrompt, userMessage, maxTokens) {
+        async function callClaudeAPI(systemPrompt, userMessage) {
             // Check rate limit
             if (!rateLimiter.canCall()) {
                 throw new Error(`Rate limit exceeded. You can make ${rateLimiter.MAX_PER_HOUR} requests per hour. Please try again later.`);
@@ -5811,7 +5705,7 @@ async function getUserSubscription() {
                     body: JSON.stringify({
                         systemPrompt: systemPrompt,
                         userMessage: userMessage,
-                        maxTokens: maxTokens || 4000,
+                        maxTokens: 4000,
                         temperature: 0
                     }),
                     signal: controller.signal
@@ -5875,6 +5769,10 @@ async function getUserSubscription() {
         let profileData = null;
         let currentJobDescription = null;
         let currentAnalysis = null;
+        let _preGapScore = null; // score before a gap-context re-analysis, for messaging
+        let _pendingIncomingProfile = null; // incoming profile awaiting conflict resolution
+        let _pendingConflicts = [];          // array of {id, label, current, incoming}
+        let _conflictResolutions = {};       // {fieldId: 'keep'|'use'}
         let currentResumeText = null;
         let currentCoverLetterText = null;
         let currentViewedFileContent = null;
@@ -5987,6 +5885,27 @@ async function getUserSubscription() {
         /**
          * Save user profile to cloud (Supabase)
          */
+        async function deleteProfileFromCloud() {
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return false;
+            try {
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .delete()
+                    .eq('user_id', user.id);
+                if (error) {
+                    console.error('Error deleting profile from cloud:', error);
+                    return false;
+                }
+                debugLog('✅ Profile deleted from cloud');
+                return true;
+            } catch (error) {
+                console.error('Error deleting profile from cloud:', error);
+                return false;
+            }
+        }
+
         async function saveProfileToCloud(profileData) {
             const supabase = getSupabase();
             const { data: { user } } = await supabase.auth.getUser();
@@ -6052,21 +5971,6 @@ async function getUserSubscription() {
 
                 if (data && data.profile_data) {
                     debugLog('✅ Profile loaded from cloud');
-                    // Migrate string fields to structured arrays
-                    if (data.profile_data.experience && typeof data.profile_data.experience === 'string') {
-                        data.profile_data.experience = parseExperienceText(data.profile_data.experience);
-                    }
-                    if (data.profile_data.certifications && typeof data.profile_data.certifications === 'string') {
-                        data.profile_data.certifications = parseCertificationsText(data.profile_data.certifications);
-                    }
-                    if (data.profile_data.projects && typeof data.profile_data.projects === 'string') {
-                        data.profile_data.projects = parseProjectsText(data.profile_data.projects);
-                    }
-                    if (data.profile_data.skills && typeof data.profile_data.skills === 'string') {
-                        data.profile_data.skills = parseSkillsText(data.profile_data.skills);
-                    }
-                    // Migrate old dates field to startDate/endDate
-                    _migrateExperienceDates(data.profile_data);
                     return data.profile_data;
                 }
 
@@ -6183,7 +6087,7 @@ async function getUserSubscription() {
                 if (profileData) {
                     const reviewSection = document.getElementById('review-section');
                     if (reviewSection && reviewSection.classList.contains('active')) {
-                        displayProfileForReview(window._pendingConflicts || []);
+                        displayProfileForReview();
                     }
                 }
 
@@ -6555,6 +6459,13 @@ async function getUserSubscription() {
         }
 
         function showSection(sectionId) {
+            // Clear JD synchronously so it's gone before any async auth check resolves
+            if (sectionId === 'job-analysis-section') {
+                const textarea = document.getElementById('job-description');
+                if (textarea) textarea.value = '';
+                currentJobDescription = null;
+            }
+
             // Gate feature sections — anonymous users must sign up first
             const gatedSections = ['setup-section', 'review-section', 'job-analysis-section', 'generated-files-section', 'about-section'];
             if (gatedSections.includes(sectionId)) {
@@ -6589,6 +6500,11 @@ async function getUserSubscription() {
                     link.classList.add('active');
                 }
             });
+            
+            // Populate review section if navigating there
+            if (sectionId === 'review-section' && profileData) {
+                displayProfileForReview();
+            }
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6721,69 +6637,34 @@ async function getUserSubscription() {
                 const firstText = await extractTextFromFile(files[0]);
                 
                 if (hasExistingProfile) {
-                    // Parse and identify conflicts against existing profile
+                    // Merge into existing profile instead of overwriting
                     const tempProfile = await parseResumeText(firstText);
-                    // Merge non-experience fields silently
-                    profileData.name = profileData.name || tempProfile.name;
-                    profileData.email = profileData.email || tempProfile.email;
-                    profileData.phone = profileData.phone || tempProfile.phone;
-                    profileData.location = profileData.location || tempProfile.location;
-                    profileData.linkedin = profileData.linkedin || tempProfile.linkedin;
-                    profileData.skills = mergeSkills(profileData.skills, tempProfile.skills);
-                    profileData.education = mergeEducation(profileData.education, tempProfile.education);
-                    profileData.certifications = mergeCertifications(profileData.certifications, tempProfile.certifications);
-                    profileData.projects = mergeProjects(profileData.projects, tempProfile.projects);
-                    profileData.backgroundContext = profileData.backgroundContext || tempProfile.backgroundContext || '';
-                    // Identify experience conflicts
-                    var allConflicts = [];
-                    const result = identifyExperienceConflicts(profileData.experience, tempProfile.experience);
-                    profileData.experience = [...result.clean, ...result.conflicts.map(c => c.base), ...result.newRoles];
-                    allConflicts = result.conflicts.map(c => ({...c, baseIndex: profileData.experience.indexOf(c.base)}));
+                    profileData = mergeProfiles(profileData, tempProfile);
                 } else {
-                    // No existing profile — create fresh using structured parser
-                    const tempProfile = await parseResumeText(firstText);
-                    profileData = tempProfile;
-                    await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
-                    await saveProfileToCloud(profileData);
-                    var allConflicts = [];
+                    // No existing profile — create fresh
+                    await parseExtractedText(firstText);
                 }
                 
-                // For additional files, parse and identify conflicts against current profileData
+                // For additional files, always parse and merge
                 for (let i = 1; i < files.length; i++) {
                     statusDiv.innerHTML = `<p style="color: #2563eb; font-weight: 600;">Processing document ${i + 1} of ${files.length}...</p>`;
                     
                     const text = await extractTextFromFile(files[i]);
                     const tempProfile = await parseResumeText(text);
                     
-                    // Merge non-experience fields
-                    profileData.skills = mergeSkills(profileData.skills, tempProfile.skills);
-                    profileData.education = mergeEducation(profileData.education, tempProfile.education);
-                    profileData.certifications = mergeCertifications(profileData.certifications, tempProfile.certifications);
-                    profileData.projects = mergeProjects(profileData.projects, tempProfile.projects);
-                    
-                    // Identify experience conflicts
-                    const result = identifyExperienceConflicts(profileData.experience, tempProfile.experience);
-                    // Keep all roles: unmatched base + matched base + new from incoming
-                    profileData.experience = [...result.clean, ...result.conflicts.map(c => c.base), ...result.newRoles];
-                    // Map conflict baseIndex to the role's position in the updated experience array
-                    for (const c of result.conflicts) {
-                        const baseIdx = profileData.experience.indexOf(c.base);
-                        allConflicts.push({...c, baseIndex: baseIdx >= 0 ? baseIdx : -1});
-                    }
+                    // Merge into existing profileData
+                    profileData = mergeProfiles(profileData, tempProfile);
                 }
                 
-                // Save base profile (without conflict resolutions — those happen on review screen)
+                // Save merged result
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
                 
-                const conflictMsg = allConflicts.length > 0 
-                    ? ` Found ${allConflicts.length} duplicate${allConflicts.length > 1 ? 's' : ''} to review.`
-                    : '';
-                statusDiv.innerHTML = `<p style="color: #10b981; font-weight: 600;">Documents processed!${conflictMsg}</p>`;
+                statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Documents processed successfully!</p>';
                 
                 // Auto-navigate to review after successful upload
                 setTimeout(() => {
-                    displayProfileForReview(allConflicts);
+                    displayProfileForReview();
                     showSection('review-section');
                 }, 1000);
                 
@@ -6796,187 +6677,35 @@ async function getUserSubscription() {
         async function parseResumeText(text) {
             // Try AI parsing first
             try {
-                const systemPrompt = `You are a resume parser. You receive raw resume text and return a single JSON object.
-
-Here is an example of a correctly parsed resume:
-
-INPUT:
-"Maria Chen
-maria.chen@email.com | (415) 555-0189 | San Francisco, CA | linkedin.com/in/mariachen
-
-EXPERIENCE
-
-Senior Product Manager
-Acme Corp (March 2022 - Present)
-Led cross-functional team of 12 to launch mobile app generating $2M ARR. Drove product roadmap prioritization using data-driven framework. Reduced time-to-market by 30% through improved sprint planning processes.
-
-Product Manager
-Beta Inc, Remote (June 2019 - February 2022)
-Managed B2B SaaS platform serving 500+ enterprise clients. Increased user retention by 35% through onboarding redesign. Partnered with engineering to deliver 15 features over 8 quarters.
-
-SKILLS
-Product Strategy, Agile, SQL, Figma, User Research, Roadmapping, Stakeholder Management
-
-CERTIFICATIONS
-Certified Scrum Product Owner (CSPO) - Scrum Alliance - 2021
-Google Analytics Certification - Google - 2020
-
-PROJECTS
-Customer Portal Redesign | UX/Product
-Led end-to-end redesign of customer-facing portal, improving NPS from 32 to 58."
-
-OUTPUT:
+                const systemPrompt = `Parse resume into JSON. Return ONLY this JSON (no markdown, no fences):
 {
   "metadata": {"version": "2.0"},
-  "name": "Maria Chen",
-  "email": "maria.chen@email.com",
-  "phone": "(415) 555-0189",
-  "location": "San Francisco, CA",
-  "linkedin": "https://linkedin.com/in/mariachen",
-  "experience": [
-    {
-      "title": "Senior Product Manager",
-      "company": "Acme Corp",
-      "location": "",
-      "startDate": "March 2022",
-      "endDate": "Present",
-      "description": "Led cross-functional team of 12 to launch mobile app generating $2M ARR. Drove product roadmap prioritization using data-driven framework. Reduced time-to-market by 30% through improved sprint planning processes."
-    },
-    {
-      "title": "Product Manager",
-      "company": "Beta Inc",
-      "location": "Remote",
-      "startDate": "June 2019",
-      "endDate": "February 2022",
-      "description": "Managed B2B SaaS platform serving 500+ enterprise clients. Increased user retention by 35% through onboarding redesign. Partnered with engineering to deliver 15 features over 8 quarters."
-    }
-  ],
-  "skills": ["Product Strategy", "Agile", "SQL", "Figma", "User Research", "Roadmapping", "Stakeholder Management"],
+  "name": "",
+  "email": "",
+  "phone": "",
+  "location": "",
+  "linkedin": "",
+  "experience": "",
+  "skills": "",
   "education": "",
-  "certifications": [
-    {"name": "Certified Scrum Product Owner (CSPO)", "issuer": "Scrum Alliance", "date": "2021"},
-    {"name": "Google Analytics Certification", "issuer": "Google", "date": "2020"}
-  ],
-  "projects": [
-    {"name": "Customer Portal Redesign", "type": "UX/Product", "description": "Led end-to-end redesign of customer-facing portal, improving NPS from 32 to 58."}
-  ]
+  "certifications": "",
+  "projects": ""
 }
 
-Field definitions:
-- "title": Job title only. Short. Never contains company names, dates, or achievements.
-- "company": Employer name only. "Self Financial" not "Change Management & AI Enablement at Self Financial".
-- "location": City and state, or "Remote", or empty string. Nothing else.
-- "startDate": Month and year only. Example: "January 2025".
-- "endDate": Month and year, or "Present". Example: "December 2025".
-- "description": All achievements, responsibilities, and bullet points for the role. This field holds the bulk of the text.
-- Each certification is one object. Never put multiple certification names in one "name" field.
-- Each skill is one string. No categories, headers, or bullet characters.
-- If no projects section exists, return an empty array.
+EXTRACTION RULES:
+- Parse name, email, phone, location (city/state), complete LinkedIn URL
+- Experience: Extract all work history with achievements - preserve complete text with metrics
+- Skills: List all skills mentioned
+- Education: Extract degrees and formal education only
+- Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
+- Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
+- Dates: Keep original format from resume
 
-Return ONLY the JSON object. No markdown, no code fences, no explanation.`;
+Return ONLY the JSON.`;
 
-                let response = await callClaudeAPI(systemPrompt, `Parse this resume:\n\n${text}`, 8000);
+                let response = await callClaudeAPI(systemPrompt, text);
                 response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                const parsed = JSON.parse(response);
-
-                // If the API returned any structured fields as strings, re-call to convert them
-                const needsConversion = [];
-                if (parsed.experience && typeof parsed.experience === 'string') needsConversion.push('experience');
-                if (parsed.skills && typeof parsed.skills === 'string') needsConversion.push('skills');
-                if (parsed.certifications && typeof parsed.certifications === 'string') needsConversion.push('certifications');
-                if (parsed.projects && typeof parsed.projects === 'string') needsConversion.push('projects');
-
-                // Also check for mega-entries (multiple items jammed into one object)
-                if (Array.isArray(parsed.certifications) && parsed.certifications.some(c => (c.name || '').length > 80 || ((c.name || '').match(/,/g) || []).length >= 2)) {
-                    debugLog('Certifications contain mega-entries, re-converting');
-                    // Flatten back to string so the conversion prompt can re-parse properly
-                    parsed.certifications = parsed.certifications.map(c => [c.name, c.issuer, c.date].filter(Boolean).join(' - ')).join('\n');
-                    needsConversion.push('certifications');
-                }
-
-                if (needsConversion.length > 0) {
-                    debugLog('API returned string fields, re-calling to convert:', needsConversion.join(', '));
-                    try {
-                        const conversionData = {};
-                        if (needsConversion.includes('experience')) conversionData.experience = parsed.experience;
-                        if (needsConversion.includes('skills')) conversionData.skills = parsed.skills;
-                        if (needsConversion.includes('certifications')) conversionData.certifications = parsed.certifications;
-                        if (needsConversion.includes('projects')) conversionData.projects = parsed.projects;
-
-                        const conversionSystemPrompt = `You are a data formatting assistant. Convert resume data from plain text into structured JSON arrays.
-
-EXAMPLE — splitting certifications:
-Input: "IBM Generative AI Engineering with LLMs Specialization | IBM | December 2025, Generative AI Strategic Leader | Vanderbilt University | October 2025, Google AI Essentials | Google | November 2025"
-Output: {"certifications": [{"name": "IBM Generative AI Engineering with LLMs Specialization", "issuer": "IBM", "date": "December 2025"}, {"name": "Generative AI Strategic Leader", "issuer": "Vanderbilt University", "date": "October 2025"}, {"name": "Google AI Essentials", "issuer": "Google", "date": "November 2025"}]}
-
-Output format:
-{
-  "experience": [{"title": "Job Title", "company": "Company Name", "location": "City, ST or Remote", "startDate": "Month Year", "endDate": "Month Year or Present", "description": "Full achievement text"}],
-  "skills": ["Skill Name", "Another Skill"],
-  "certifications": [{"name": "One Certification Only", "issuer": "Issuing Organization", "date": "Date"}],
-  "projects": [{"name": "Project Name", "type": "Category", "description": "Full project details"}]
-}
-
-Rules:
-- Each certification, role, and project is its own object. Never combine multiple items into one.
-- Each "name" field contains exactly ONE certification name.
-- Each skill is its own string.
-- Only include fields that appear in the input data.
-- Return ONLY valid JSON. No markdown, no commentary.`;
-
-                        const conversionUserMessage = `Convert this data:\n${JSON.stringify(conversionData, null, 2)}`;
-
-                        let convResponse = await callClaudeAPI(conversionSystemPrompt, conversionUserMessage);
-                        convResponse = convResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                        const converted = JSON.parse(convResponse);
-
-                        if (converted.experience && Array.isArray(converted.experience)) parsed.experience = converted.experience;
-                        if (converted.skills && Array.isArray(converted.skills)) parsed.skills = converted.skills;
-                        if (converted.certifications && Array.isArray(converted.certifications)) parsed.certifications = converted.certifications;
-                        if (converted.projects && Array.isArray(converted.projects)) parsed.projects = converted.projects;
-                    } catch (convError) {
-                        debugLog('Conversion retry failed, using fallback parsers:', convError);
-                        // Fall back to simple text parsers only if the API retry also fails
-                        if (typeof parsed.experience === 'string') parsed.experience = parseExperienceText(parsed.experience);
-                        if (typeof parsed.skills === 'string') parsed.skills = parseSkillsText(parsed.skills);
-                        if (typeof parsed.certifications === 'string') parsed.certifications = parseCertificationsText(parsed.certifications);
-                        if (typeof parsed.projects === 'string') parsed.projects = parseProjectsText(parsed.projects);
-                    }
-                }
-
-                // Final safety: ensure arrays
-                if (!Array.isArray(parsed.experience)) parsed.experience = [];
-                if (!Array.isArray(parsed.skills)) parsed.skills = [];
-                if (!Array.isArray(parsed.certifications)) parsed.certifications = [];
-                if (!Array.isArray(parsed.projects)) parsed.projects = [];
-
-                // Quality check: remove title-less experience entries, merge their descriptions into the closest role at the same company
-                if (parsed.experience.length > 0) {
-                    const titleless = parsed.experience.filter(r => !(r.title || '').trim());
-                    const titled = parsed.experience.filter(r => (r.title || '').trim());
-                    for (const orphan of titleless) {
-                        const orphanCompany = _stripNoise(orphan.company || '').replace(/\s+/g, '');
-                        if (orphanCompany) {
-                            // Find the best match at the same company (longest existing description = most senior/recent role)
-                            let bestMatch = null;
-                            let bestLen = -1;
-                            for (const role of titled) {
-                                const roleCompany = _stripNoise(role.company || '').replace(/\s+/g, '');
-                                if (roleCompany === orphanCompany && (role.description || '').length > bestLen) {
-                                    bestMatch = role;
-                                    bestLen = (role.description || '').length;
-                                }
-                            }
-                            if (bestMatch && (orphan.description || '').trim()) {
-                                bestMatch.description = (bestMatch.description || '') + '\n' + orphan.description.trim();
-                                debugLog('Merged title-less entry into', bestMatch.title, 'at', bestMatch.company);
-                            }
-                        }
-                    }
-                    parsed.experience = titled;
-                }
-
-                return parsed;
+                return JSON.parse(response);
             } catch (error) {
                 debugLog('AI parsing failed, using pattern parser:', error);
                 return parseResumeWithPatterns(text);
@@ -7017,19 +6746,29 @@ Rules:
             try {
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
-                profileData = mergeProfiles(profileData, tempProfile);
+                const conflicts = detectUploadConflicts(profileData, tempProfile);
 
-                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
-                await saveProfileToCloud(profileData);
+                // DEBUG — remove before ship
+                console.log('[upload] profileData at conflict check:', profileData);
+                console.log('[upload] tempProfile from parse:', tempProfile);
+                console.log('[upload] conflicts detected:', conflicts);
+                showToast(`[debug] ${conflicts.length} conflict(s) detected. Profile null? ${profileData === null}`, conflicts.length > 0 ? 'success' : 'error');
 
-                statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
-                displayProfileForReview();
-
-                // Clear status after 3 seconds
-                setTimeout(() => {
-                    statusDiv.classList.add('hidden');
-                    statusDiv.innerHTML = '';
-                }, 3000);
+                if (conflicts.length === 0) {
+                    // No conflicts — auto-merge and save immediately
+                    profileData = mergeProfiles(profileData, tempProfile);
+                    await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+                    await saveProfileToCloud(profileData);
+                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
+                    displayProfileForReview();
+                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                } else {
+                    // Conflicts found — stash incoming profile and show resolution cards
+                    _pendingIncomingProfile = tempProfile;
+                    _pendingConflicts = conflicts;
+                    _conflictResolutions = {};
+                    statusDiv.innerHTML = renderConflictCards(conflicts);
+                }
 
             } catch (error) {
                 console.error('Review upload error:', error);
@@ -7037,6 +6776,159 @@ Rules:
             }
 
             event.target.value = '';
+        }
+
+        function detectUploadConflicts(existing, incoming) {
+            const CONFLICT_FIELDS = [
+                { id: 'name',     label: 'Full Name' },
+                { id: 'email',    label: 'Email' },
+                { id: 'phone',    label: 'Phone' },
+                { id: 'location', label: 'Location' },
+                { id: 'linkedin', label: 'LinkedIn' }
+            ];
+            const conflicts = [];
+
+            // Check scalar contact fields
+            for (const { id, label } of CONFLICT_FIELDS) {
+                const cur = ((existing || {})[id] || '').toString().trim();
+                const inc = ((incoming || {})[id] || '').toString().trim();
+                if (cur && inc && cur !== inc) {
+                    conflicts.push({ id, label, current: cur, incoming: inc });
+                }
+            }
+
+            // Check content fields — normalise experience (may be array or string)
+            const contentFields = [
+                { id: 'experience', label: 'Work Experience', getValue: (p) => experienceToText((p || {}).experience) },
+                { id: 'skills',     label: 'Skills',          getValue: (p) => ((p || {}).skills || '').toString() },
+                { id: 'education',  label: 'Education',       getValue: (p) => ((p || {}).education || '').toString() }
+            ];
+            for (const { id, label, getValue } of contentFields) {
+                const cur = getValue(existing).trim();
+                const inc = getValue(incoming).trim();
+                if (cur && inc && cur !== inc) {
+                    conflicts.push({ id, label, current: cur, incoming: inc });
+                }
+            }
+
+            return conflicts;
+        }
+
+        function renderConflictCards(conflicts) {
+            const cards = conflicts.map(c => {
+                const preview = (val) => val.length > 120 ? val.slice(0, 117) + '…' : val;
+                return `
+                <div id="conflict-card-${c.id}" class="conflict-card" style="
+                    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;">
+                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${c.label}</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="
+                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
+                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.current)}</span>
+                        </button>
+                        <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="
+                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
+                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.incoming)}</span>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div style="margin-bottom: 16px;">
+                <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
+                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
+                    The uploaded resume differs from your saved profile in the fields below.
+                    Choose which version to keep for each field.
+                </p>
+                ${cards}
+                <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
+                    margin-top: 8px; padding: 10px 20px; border-radius: 8px;
+                    border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+                    background: #94a3b8; color: #fff; transition: background 0.15s;"
+                    title="Resolve all conflicts above to continue">
+                    Apply &amp; Merge
+                </button>
+            </div>`;
+        }
+
+        function selectConflictOption(fieldId, choice) {
+            // Update resolution record
+            _conflictResolutions[fieldId] = choice;
+
+            // Visual feedback — highlight selected button, de-highlight the other
+            const keepBtn = document.getElementById('conflict-keep-' + fieldId);
+            const useBtn  = document.getElementById('conflict-use-'  + fieldId);
+            if (keepBtn && useBtn) {
+                const selectedStyle = 'border: 2px solid #3b82f6; background: #eff6ff;';
+                const defaultStyle  = 'border: 2px solid #e2e8f0; background: #f8fafc;';
+                keepBtn.style.cssText = keepBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
+                useBtn.style.cssText  = useBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
+                if (choice === 'keep') {
+                    keepBtn.style.border = '2px solid #3b82f6';
+                    keepBtn.style.background = '#eff6ff';
+                    useBtn.style.border = '2px solid #e2e8f0';
+                    useBtn.style.background = '#f8fafc';
+                } else {
+                    useBtn.style.border = '2px solid #3b82f6';
+                    useBtn.style.background = '#eff6ff';
+                    keepBtn.style.border = '2px solid #e2e8f0';
+                    keepBtn.style.background = '#f8fafc';
+                }
+            }
+
+            // Enable Apply button once all conflicts are resolved
+            const allResolved = _pendingConflicts.every(c => _conflictResolutions[c.id]);
+            const applyBtn = document.getElementById('conflict-apply-btn');
+            if (applyBtn) {
+                applyBtn.disabled = !allResolved;
+                applyBtn.style.background = allResolved ? '#3b82f6' : '#94a3b8';
+                applyBtn.style.cursor = allResolved ? 'pointer' : 'default';
+            }
+        }
+
+        async function applyConflictResolutions() {
+            if (!_pendingIncomingProfile) return;
+
+            const applyBtn = document.getElementById('conflict-apply-btn');
+            if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
+
+            try {
+                // Start with auto-merged profile (handles arrays, empty fields, etc.)
+                const merged = mergeProfiles(profileData, _pendingIncomingProfile);
+
+                // Override each conflict field with the user's chosen value
+                for (const conflict of _pendingConflicts) {
+                    const choice = _conflictResolutions[conflict.id];
+                    merged[conflict.id] = choice === 'use' ? conflict.incoming : conflict.current;
+                }
+
+                profileData = merged;
+                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+                await saveProfileToCloud(profileData);
+
+                // Clear pending state
+                _pendingIncomingProfile = null;
+                _pendingConflicts = [];
+                _conflictResolutions = {};
+
+                const statusDiv = document.getElementById('review-upload-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
+                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                }
+                displayProfileForReview();
+
+            } catch (error) {
+                console.error('Conflict resolution apply error:', error);
+                const applyBtn2 = document.getElementById('conflict-apply-btn');
+                if (applyBtn2) { applyBtn2.disabled = false; applyBtn2.textContent = 'Apply & Merge'; }
+                showToast('Failed to save — please try again.', 'error');
+            }
         }
 
         function mergeProfiles(profile1, profile2) {
@@ -7053,13 +6945,224 @@ Rules:
             merged.experience = mergeExperience(profile1.experience, profile2.experience);
             merged.skills = mergeSkills(profile1.skills, profile2.skills);
             merged.education = mergeEducation(profile1.education, profile2.education);
-            merged.certifications = mergeCertifications(profile1.certifications, profile2.certifications);
+            
+            // ALWAYS combine certifications and projects (don't check similarity)
+            merged.certifications = mergeListFields(profile1.certifications, profile2.certifications);
             merged.projects = mergeProjects(profile1.projects, profile2.projects);
             
-            // Preserve backgroundContext - prefer existing, fall back to incoming
+            // Preserve backgroundContext — prefer existing, fall back to incoming
             merged.backgroundContext = profile1.backgroundContext || profile2.backgroundContext || '';
             
             return merged;
+        }
+
+        function mergeListFields(text1, text2) {
+            // For lists (certifications, projects), always combine and deduplicate
+            if (!text1 && !text2) return '';
+            if (!text1) return text2;
+            if (!text2) return text1;
+            
+            // Split items - handles BOTH newline AND comma separation
+            const splitItems = (text) => {
+                // First split by double newlines to get separate blocks
+                let lines = text.split(/\n\n+/).map(s => s.trim()).filter(s => s);
+                
+                // Then check each line - it might contain comma-separated items
+                let allItems = [];
+                for (const line of lines) {
+                    // Check if line contains comma-separated items
+                    // Look for pattern: "Item1, Item2" where items start with capital letters
+                    if (line.includes(',') && /,\s*[A-Z]/.test(line)) {
+                        // Split by comma followed by optional space and capital letter
+                        const subItems = line.split(/,(?=\s*[A-Z])/).map(s => s.trim()).filter(s => s);
+                        allItems.push(...subItems);
+                    } else {
+                        // Single item (might span multiple lines but no commas)
+                        allItems.push(line);
+                    }
+                }
+                
+                return allItems;
+            };
+            
+            const items1 = splitItems(text1);
+            const items2 = splitItems(text2);
+            
+            // Normalize certification name for comparison
+            const normalizeCertName = (text) => {
+                // Common organization names to remove
+                const orgs = ['ibm', 'google', 'microsoft', 'amazon', 'aws', 'vanderbilt', 'harvardx', 
+                             'harvard', 'mit', 'stanford', 'coursera', 'udacity', 'edx', 'linkedin'];
+                
+                let normalized = text
+                    .toLowerCase()
+                    .replace(/\([^)]*\)/g, '')   // Remove anything in parentheses (dates)
+                    .replace(/–/g, ' ')           // Replace dashes with spaces
+                    .replace(/-/g, ' ')           // Replace hyphens with spaces
+                    .replace(/:/g, ' ')           // Replace colons with spaces
+                    .replace(/\d{4}/g, '')        // Remove years (2025, 2024, etc)
+                    .replace(/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/gi, '') // Remove months
+                    .replace(/[^\w\s]/g, ' ')     // Remove special chars
+                    .replace(/\s+/g, ' ')         // Collapse whitespace
+                    .trim();
+                
+                // Remove organization names
+                for (const org of orgs) {
+                    normalized = normalized.replace(new RegExp(`\\b${org}\\b`, 'gi'), '');
+                }
+                
+                // Remove common words
+                normalized = normalized
+                    .replace(/\b(specialization|certification|certificate|verified|course|program|university|for)\b/gi, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                
+                return normalized;
+            };
+            
+            // Deduplicate using normalized names
+            const seen = new Map(); // Map normalized name -> original item
+            const combined = [];
+            
+            for (const item of [...items1, ...items2]) {
+                const normalized = normalizeCertName(item);
+                
+                // Skip if we've seen this certification before (or if normalized is too short)
+                if (normalized.length > 5 && !seen.has(normalized)) {
+                    seen.set(normalized, item);
+                    combined.push(item);
+                }
+            }
+            
+            return combined.join('\n\n');
+        }
+        
+        function mergeProjects(text1, text2) {
+            if (!text1 && !text2) return '';
+            if (!text1) return text2;
+            if (!text2) return text1;
+
+            // Split on project title boundaries — titles follow "Name | Category" or "Name - Category" pattern
+            // Falls back to double-newline split if no title boundaries detected
+            const splitProjects = (text) => {
+                const parts = text.split(/\n\n(?=[A-Z][^\n]+(?:\s\||\s–|\s—)\s)/);
+                if (parts.length > 1) {
+                    return parts.map(s => s.trim()).filter(s => s.length > 10);
+                }
+                return text.split(/\n\n+/).map(s => s.trim()).filter(s => s.length > 10);
+            };
+
+            // Normalize project name — use just the title portion
+            const normalizeProjectName = (text) => {
+                const firstLine = text.split('\n')[0];
+                return firstLine
+                    .toLowerCase()
+                    .replace(/\|.*$/, '')
+                    .replace(/–.*$/, '')
+                    .replace(/—.*$/, '')
+                    .replace(/-\s+[A-Z].*$/, '')
+                    .replace(/[^\w\s]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            };
+
+            const items1 = splitProjects(text1);
+            const items2 = splitProjects(text2);
+
+            const seen = new Map();
+            const combined = [];
+
+            for (const item of [...items1, ...items2]) {
+                const normalized = normalizeProjectName(item);
+                if (normalized.length > 3 && !seen.has(normalized)) {
+                    seen.set(normalized, item);
+                    combined.push(item);
+                } else if (seen.has(normalized) && item.length > seen.get(normalized).length) {
+                    seen.set(normalized, item);
+                    const idx = combined.findIndex(p => normalizeProjectName(p) === normalized);
+                    if (idx !== -1) combined[idx] = item;
+                }
+            }
+
+            return combined.join('\n\n');
+        }
+
+        function mergeExperience(exp1, exp2) {
+            if (!exp1 && !exp2) return '';
+            if (!exp1) return exp2;
+            if (!exp2) return exp1;
+
+            // Parse job entries — split on double newlines
+            const parseJobs = (text) => {
+                return text.split(/\n\n+/).map(job => job.trim()).filter(job => job.length > 20);
+            };
+
+            const jobs1 = parseJobs(exp1);
+            const jobs2 = parseJobs(exp2);
+
+            // Extract title and company separately to handle format variations:
+            // "Title, Company | Location | Date"
+            // "Title at Company (Date)"
+            // "Company - Title (Date)"
+            // "Title - Specialization, Company (Date)"
+            const extractTitleCompany = (jobText) => {
+                const firstLine = jobText.split('\n')[0];
+
+                // Format: "Title at Company ..."
+                const atMatch = firstLine.match(/^(.+?)\s+at\s+(.+?)(?:\s*[\|(]|$)/i);
+                if (atMatch) {
+                    return { title: atMatch[1].trim(), company: atMatch[2].trim() };
+                }
+
+                // Format: "Company - Title ..." or "Title - Specialization, Company"
+                const dashMatch = firstLine.match(/^([^,]+?)\s*[-–—]\s*(.+?)(?:\s*[\|(]|$)/);
+                if (dashMatch) {
+                    const before = dashMatch[1].trim();
+                    const after = dashMatch[2].trim();
+                    if (/,\s*\w/.test(after)) {
+                        // "Title - Specialization, Company" format
+                        return { title: before, company: after.split(',').slice(-1)[0].trim() };
+                    } else {
+                        // "Company - Title" format
+                        return { title: after, company: before };
+                    }
+                }
+
+                // Format: "Title, Company | Location | Date"
+                const commaMatch = firstLine.match(/^(.+?),\s*(.+?)(?:\s*[\|(]|$)/);
+                if (commaMatch) {
+                    return { title: commaMatch[1].trim(), company: commaMatch[2].trim() };
+                }
+
+                return { title: firstLine, company: '' };
+            };
+
+            const normalizeJobKey = (jobText) => {
+                const { title, company } = extractTitleCompany(jobText);
+                const clean = (s) => s
+                    .toLowerCase()
+                    .replace(/\b(sr|senior|jr|junior|associate|lead|principal|staff)\b\.?/gi, '')
+                    .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi, '')
+                    .replace(/\d{4}/g, '')
+                    .replace(/\b(present|current|remote)\b/gi, '')
+                    .replace(/[–—\-|,]/g, ' ')
+                    .replace(/[^\w\s]/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                return `${clean(title)}__${clean(company)}`;
+            };
+
+            // Deduplicate — keep longest/most detailed version
+            const jobMap = new Map();
+
+            for (const job of [...jobs1, ...jobs2]) {
+                const key = normalizeJobKey(job);
+                if (!jobMap.has(key) || job.length > jobMap.get(key).length) {
+                    jobMap.set(key, job);
+                }
+            }
+
+            return Array.from(jobMap.values()).join('\n\n');
         }
 
         function mergeEducation(edu1, edu2) {
@@ -7078,6 +7181,7 @@ Rules:
             
             // Normalize education for comparison
             const normalizeEducation = (eduText) => {
+                // Common degree abbreviations
                 const degreeMap = {
                     'bachelor of science': 'bs',
                     'bachelor of arts': 'ba',
@@ -7091,15 +7195,16 @@ Rules:
                 
                 let normalized = eduText
                     .toLowerCase()
-                    .replace(/\b(university|college|institute|school)\b/gi, '')
-                    .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi, '')
-                    .replace(/\d{4}/g, '')
-                    .replace(/[–—-]/g, ' ')
-                    .replace(/\b(in|of|the|and)\b/gi, '')
-                    .replace(/[^\w\s]/g, ' ')
-                    .replace(/\s+/g, ' ')
+                    .replace(/\b(university|college|institute|school)\b/gi, '') // Remove institution types
+                    .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi, '') // Remove months
+                    .replace(/\d{4}/g, '')        // Remove years
+                    .replace(/[–—-]/g, ' ')       // Replace dashes
+                    .replace(/\b(in|of|the|and)\b/gi, '') // Remove common words
+                    .replace(/[^\w\s]/g, ' ')     // Remove special chars
+                    .replace(/\s+/g, ' ')         // Collapse whitespace
                     .trim();
                 
+                // Normalize degree names
                 for (const [full, abbrev] of Object.entries(degreeMap)) {
                     normalized = normalized.replace(new RegExp(`\\b${full}\\b`, 'gi'), abbrev);
                 }
@@ -7108,7 +7213,7 @@ Rules:
             };
             
             // Deduplicate education entries
-            const eduMap = new Map();
+            const eduMap = new Map(); // normalized -> full education text
             
             for (const edu of [...edus1, ...edus2]) {
                 const normalized = normalizeEducation(edu);
@@ -7123,391 +7228,66 @@ Rules:
         }
 
         function mergeSkills(skills1, skills2) {
-            const arr1 = ensureSkillsArray(skills1);
-            const arr2 = ensureSkillsArray(skills2);
-            if (!arr1.length && !arr2.length) return [];
-            if (!arr1.length) return arr2;
-            if (!arr2.length) return arr1;
-
+            if (!skills1 && !skills2) return '';
+            if (!skills1) return skills2;
+            if (!skills2) return skills1;
+            
+            // Normalize skill names for deduplication
             const normalizeSkill = (skill) => {
-                return skill.toLowerCase().replace(/\./g, '').replace(/\s+/g, '').replace(/[^\w]/g, '').trim();
+                return skill
+                    .toLowerCase()
+                    .replace(/\./g, '')           // Remove dots: "Node.js" → "nodejs"
+                    .replace(/\s+/g, '')          // Remove spaces: "Machine Learning" → "machinelearning"
+                    .replace(/[^\w]/g, '')        // Remove special chars
+                    .replace(/\d+/g, '')          // Remove versions: "Python3" → "python"
+                    .replace(/^(the|a|an)\b/i, '') // Remove articles
+                    .trim();
             };
-
+            
+            // Common abbreviations map
             const abbreviations = {
-                'javascript': ['js'], 'typescript': ['ts'], 'python': ['py'],
-                'machinelearning': ['ml'], 'artificialintelligence': ['ai'],
-                'naturallanguageprocessing': ['nlp'], 'deeplearning': ['dl'],
-                'largelanguagemodels': ['llm', 'llms'], 'generativeai': ['genai']
+                'javascript': ['js', 'javascript'],
+                'typescript': ['ts', 'typescript'],
+                'python': ['py', 'python'],
+                'machinelearning': ['ml', 'machinelearning'],
+                'artificialintelligence': ['ai', 'artificialintelligence'],
+                'naturallanguageprocessing': ['nlp', 'naturallanguageprocessing'],
+                'deeplearning': ['dl', 'deeplearning'],
+                'largelanguagemodels': ['llm', 'llms', 'largelanguagemodels'],
+                'generativeai': ['genai', 'generativeai']
             };
+            
+            // Create reverse lookup
             const abbrevToFull = {};
             for (const [full, abbrevs] of Object.entries(abbreviations)) {
-                for (const a of abbrevs) abbrevToFull[a] = full;
-            }
-
-            const skillMap = new Map();
-            for (const skill of [...arr1, ...arr2]) {
-                let normalized = normalizeSkill(skill);
-                if (abbrevToFull[normalized]) normalized = abbrevToFull[normalized];
-                if (normalized.length > 1 && !skillMap.has(normalized)) {
-                    skillMap.set(normalized, skill);
+                for (const abbrev of abbrevs) {
+                    abbrevToFull[abbrev] = full;
                 }
             }
-            return Array.from(skillMap.values());
-        }
-
-        // --- Experience format conversion ---
-
-        // Convert experience array to display string for textareas and chunk prompts
-        function flattenExperience(experience) {
-            if (typeof experience === 'string') return experience;
-            if (!Array.isArray(experience)) return '';
-            return experience.map(role => {
-                const dateStr = [role.startDate, role.endDate].filter(Boolean).join(' - ') || role.dates || '';
-                const header = [role.title, role.company, role.location, dateStr]
-                    .filter(Boolean).join(', ');
-                return role.description ? header + ': ' + role.description : header;
-            }).join('\n\n');
-        }
-
-        // Convert a text string (from textarea editing) back into structured experience array.
-        // Only needs to handle the format flattenExperience() produces: "Title, Company, Location, Dates: Description"
-        function parseExperienceText(text) {
-            if (!text || !text.trim()) return [];
-            if (Array.isArray(text)) return text;
-            return text.split(/\n\n+/).filter(s => s.trim().length > 20).map(block => {
-                // Split header from description at ": " (colon-space)
-                const colonIdx = block.indexOf(': ');
-                const header = colonIdx > 0 ? block.slice(0, colonIdx).trim() : block.trim();
-                const description = colonIdx > 0 ? block.slice(colonIdx + 2).trim() : '';
-                // Header is comma-delimited: "Title, Company, Location, StartDate - EndDate"
-                const parts = header.split(',').map(p => p.trim());
-                // Last part may contain "StartDate - EndDate"
-                const datesPart = parts.slice(3).join(', ') || '';
-                const dateSplit = datesPart.split(/\s*[\u2013\u2014\-]\s*/);
-                return {
-                    title: parts[0] || '',
-                    company: parts[1] || '',
-                    location: parts[2] || '',
-                    startDate: dateSplit[0] || '',
-                    endDate: dateSplit.length > 1 ? dateSplit.slice(1).join(' - ') : '',
-                    description
-                };
-            });
-        }
-
-        // Ensure experience is always an array (migration from string format)
-        function ensureExperienceArray(experience) {
-            if (Array.isArray(experience)) return experience;
-            if (typeof experience === 'string' && experience.trim()) return parseExperienceText(experience);
-            return [];
-        }
-
-        // --- Skills format conversion ---
-
-        function flattenSkills(skills) {
-            if (typeof skills === 'string') return skills;
-            if (!Array.isArray(skills)) return '';
-            return skills.join(', ');
-        }
-
-        function parseSkillsText(text) {
-            if (!text || !text.trim()) return [];
-            if (Array.isArray(text)) return text;
-            // Split on commas, pipes, newlines, semicolons, bullets
-            return text.split(/[,|\n;]|\s*•\s*/).map(s => {
-                // Strip category headers like "Operations & Implementation:"
-                const colonIdx = s.indexOf(':');
-                return colonIdx > -1 ? s.slice(colonIdx + 1).trim() : s.trim();
-            }).filter(s => s.length > 1);
-        }
-
-        function ensureSkillsArray(skills) {
-            if (Array.isArray(skills)) return skills;
-            if (typeof skills === 'string' && skills.trim()) return parseSkillsText(skills);
-            return [];
-        }
-
-        // --- Certifications format conversion ---
-
-        function flattenCertifications(certs) {
-            if (typeof certs === 'string') return certs;
-            if (!Array.isArray(certs)) return '';
-            return certs.map(c => {
-                const parts = [c.name, c.issuer, c.date].filter(Boolean);
-                return parts.join(' - ');
-            }).join('\n\n');
-        }
-
-        // Convert textarea text back to cert array.
-        // Handles the format flattenCertifications() produces: "Name - Issuer - Date"
-        function parseCertificationsText(text) {
-            if (!text || !text.trim()) return [];
-            if (Array.isArray(text)) return text;
-            return text.split(/\n\n+/).map(s => s.trim()).filter(s => s.length > 5).map(item => {
-                // Try "Name - Issuer - Date"
-                const dashParts = item.split(/\s*[\u2013\u2014\-]\s*/);
-                if (dashParts.length >= 3) {
-                    return { name: dashParts[0].trim(), issuer: dashParts[1].trim(), date: dashParts.slice(2).join(' - ').trim() };
-                }
-                if (dashParts.length === 2) {
-                    return { name: dashParts[0].trim(), issuer: dashParts[1].trim(), date: '' };
-                }
-                return { name: item.trim(), issuer: '', date: '' };
-            });
-        }
-
-        function ensureCertificationsArray(certs) {
-            if (Array.isArray(certs)) return certs;
-            if (typeof certs === 'string' && certs.trim()) return parseCertificationsText(certs);
-            return [];
-        }
-
-        // --- Projects format conversion ---
-
-        function flattenProjects(projects) {
-            if (typeof projects === 'string') return projects;
-            if (!Array.isArray(projects)) return '';
-            return projects.map(p => {
-                const header = [p.name, p.type].filter(Boolean).join(' | ');
-                return p.description ? header + ' - ' + p.description : header;
-            }).join('\n\n');
-        }
-
-        function parseProjectsText(text) {
-            if (!text || !text.trim()) return [];
-            if (Array.isArray(text)) return text;
-            return text.split(/\n\n+/).filter(s => s.trim().length > 10).map(block => {
-                // Try "Name | Type - Description" or "Name | Type: Description"
-                const pipeMatch = block.match(/^(.+?)\s*\|\s*(.+?)(?:\s*[\-:]\s*)(.+)$/s);
-                if (pipeMatch) {
-                    return { name: pipeMatch[1].trim(), type: pipeMatch[2].trim(), description: pipeMatch[3].trim() };
-                }
-                // Try "Name - Description"
-                const dashMatch = block.match(/^(.+?)\s*[\-:]\s*(.+)$/s);
-                if (dashMatch) {
-                    return { name: dashMatch[1].trim(), type: '', description: dashMatch[2].trim() };
-                }
-                return { name: block.trim(), type: '', description: '' };
-            });
-        }
-
-        function ensureProjectsArray(projects) {
-            if (Array.isArray(projects)) return projects;
-            if (typeof projects === 'string' && projects.trim()) return parseProjectsText(projects);
-            return [];
-        }
-
-        // --- Shared helpers ---
-
-        // Strip noise from any text field for comparison purposes
-        function _stripNoise(text) {
-            return text
-                .toLowerCase()
-                .replace(/\([^)]*\)/g, ' ')
-                .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/gi, '')
-                .replace(/\d{4}/g, '')
-                .replace(/\b(present|current|remote)\b/gi, '')
-                .replace(/[\u2013\u2014\-|,]/g, ' ')
-                .replace(/[^\w\s]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        }
-
-        // Known seniority ladder - order matters, lower index = more junior
-        const _SENIORITY_LADDER = [
-            'intern', 'associate', 'junior', 'jr',
-            'analyst', 'specialist', 'coordinator',
-            'senior', 'sr', 'lead',
-            'staff', 'principal', 'manager',
-            'director', 'vp', 'vice president', 'svp',
-            'cto', 'coo', 'ceo', 'chief'
-        ];
-
-        // Return the highest seniority level index found in a title string, or -1 if none
-        function _seniorityLevel(title) {
-            const t = title.toLowerCase();
-            let highest = -1;
-            for (let i = 0; i < _SENIORITY_LADDER.length; i++) {
-                if (new RegExp('\\b' + _SENIORITY_LADDER[i] + '\\b').test(t)) {
-                    highest = Math.max(highest, i);
-                }
-            }
-            return highest;
-        }
-
-        // --- mergeExperience (structured) ---
-
-        // Return core title words after stripping seniority prefixes
-        function _coreTitleWords(title) {
-            let t = (title || '').toLowerCase();
-            for (const word of _SENIORITY_LADDER) {
-                t = t.replace(new RegExp('\\b' + word + '\\.?\\b', 'g'), '');
-            }
-            const filler = new Set(['the','of','and','in','for','a','an','to','at','by','or','on','is','it','with']);
-            return new Set(t.replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !filler.has(w)));
-        }
-
-        // True if two titles share >= 50% of core words (same role, possibly rewritten)
-        function _titlesSimilar(titleA, titleB) {
-            const wordsA = _coreTitleWords(titleA);
-            const wordsB = _coreTitleWords(titleB);
-            if (!wordsA.size || !wordsB.size) return false;
-            let overlap = 0;
-            for (const w of wordsA) { if (wordsB.has(w)) overlap++; }
-            return overlap / Math.min(wordsA.size, wordsB.size) >= 0.5;
-        }
-
-        function mergeExperience(exp1, exp2) {
-            // Backward-compatible: auto-merge without conflict UI (used by mergeProfiles for non-UI contexts)
-            const result = identifyExperienceConflicts(exp1, exp2);
-            // Auto-resolve conflicts: concatenate descriptions, fill empty fields from incoming
-            const resolved = result.clean.map(r => ({...r}));
-            for (const conflict of result.conflicts) {
-                const merged = {...conflict.base};
-                merged.startDate = merged.startDate || conflict.incoming.startDate || '';
-                merged.endDate = merged.endDate || conflict.incoming.endDate || '';
-                merged.location = merged.location || conflict.incoming.location || '';
-                merged.company = merged.company || conflict.incoming.company || '';
-                if ((conflict.incoming.description || '').trim()) {
-                    merged.description = (merged.description || '') + '\n' + conflict.incoming.description.trim();
-                }
-                resolved.push(merged);
-            }
-            return resolved;
-        }
-
-        // Identify conflicts between base roles and incoming roles without resolving them.
-        // Returns { clean: [roles with no conflict], conflicts: [{base, incoming}], newRoles: [roles not in base] }
-        function identifyExperienceConflicts(exp1, exp2) {
-            const roles1 = ensureExperienceArray(exp1);
-            const roles2 = ensureExperienceArray(exp2);
-            if (!roles1.length && !roles2.length) return { clean: [], conflicts: [], newRoles: [] };
-            if (!roles1.length) return { clean: [], conflicts: [], newRoles: roles2 };
-            if (!roles2.length) return { clean: roles1, conflicts: [], newRoles: [] };
-
-            const roleKey = (role) => {
-                let t = _stripNoise(role.title || '');
-                t = t.replace(/\bsenior\b/g, 'sr')
-                     .replace(/\bjunior\b/g, 'jr')
-                     .replace(/\s+/g, '');
-                const c = _stripNoise(role.company || '').replace(/\s+/g, '');
-                return t + '__' + c;
-            };
-
-            const _extractYear = (dateStr) => {
-                const m = (dateStr || '').match(/\b(20\d{2}|19\d{2})\b/);
-                return m ? parseInt(m[1]) : null;
-            };
-
-            // Check if two roles are likely duplicates
-            const isDuplicate = (a, b) => {
-                const compA = _stripNoise(a.company || '').replace(/\s+/g, '');
-                const compB = _stripNoise(b.company || '').replace(/\s+/g, '');
-                if (!compA || !compB || compA !== compB) return false;
-                if (!_titlesSimilar(a.title, b.title)) return false;
-                // Different seniority = promotion, not duplicate
-                const senA = _seniorityLevel(a.title || '');
-                const senB = _seniorityLevel(b.title || '');
-                if (senA !== -1 && senB !== -1 && senA !== senB) return false;
-                // Different start years by >1 = different tenure, not duplicate
-                const yA = _extractYear(a.startDate || a.dates);
-                const yB = _extractYear(b.startDate || b.dates);
-                if (yA && yB && Math.abs(yA - yB) > 1) return false;
-                return true;
-            };
-
-            const clean = [];
-            const conflicts = [];
-            const newRoles = [];
-            const matchedBaseIndices = new Set();
-
-            for (const incoming of roles2) {
-                let matched = false;
-                for (let i = 0; i < roles1.length; i++) {
-                    if (matchedBaseIndices.has(i)) continue;
-                    if (isDuplicate(roles1[i], incoming)) {
-                        conflicts.push({ base: roles1[i], incoming });
-                        matchedBaseIndices.add(i);
-                        matched = true;
-                        break;
+            
+            // Split and normalize
+            const skillMap = new Map(); // normalized name -> original display name
+            
+            for (const skillText of [skills1, skills2]) {
+                const skills = skillText.split(/[,|\n]/).map(s => s.trim()).filter(s => s);
+                
+                for (const skill of skills) {
+                    let normalized = normalizeSkill(skill);
+                    
+                    // Expand abbreviations
+                    if (abbrevToFull[normalized]) {
+                        normalized = abbrevToFull[normalized];
+                    }
+                    
+                    // Keep the longer/more descriptive version
+                    if (!skillMap.has(normalized) || skill.length > skillMap.get(normalized).length) {
+                        skillMap.set(normalized, skill);
                     }
                 }
-                if (!matched) {
-                    newRoles.push(incoming);
-                }
             }
-
-            // Base roles that had no match go to clean
-            for (let i = 0; i < roles1.length; i++) {
-                if (!matchedBaseIndices.has(i)) {
-                    clean.push(roles1[i]);
-                }
-            }
-
-            return { clean, conflicts, newRoles };
-        }
-
-        // --- mergeCertifications ---
-
-        function mergeCertifications(certs1, certs2) {
-            const arr1 = ensureCertificationsArray(certs1);
-            const arr2 = ensureCertificationsArray(certs2);
-            if (!arr1.length && !arr2.length) return [];
-            if (!arr1.length) return arr2;
-            if (!arr2.length) return arr1;
-
-            const certKey = (cert) => {
-                const orgs = ['ibm', 'google', 'microsoft', 'amazon', 'aws', 'vanderbilt',
-                              'harvardx', 'harvard', 'mit', 'stanford', 'coursera', 'udacity',
-                              'edx', 'linkedin'];
-                let n = _stripNoise(cert.name || '');
-                for (const org of orgs) {
-                    n = n.replace(new RegExp('\\b' + org + '\\b', 'gi'), '');
-                }
-                return n.replace(/\b(specialization|certification|certificate|certified|course|program|university|verified|for)\b/gi, '')
-                         .replace(/\s+/g, '').trim();
-            };
-
-            const seen = new Map();
-            const combined = [];
-            for (const cert of [...arr1, ...arr2]) {
-                const key = certKey(cert);
-                if (key.length > 3 && !seen.has(key)) {
-                    seen.set(key, cert);
-                    combined.push(cert);
-                }
-            }
-            return combined;
-        }
-
-        // --- mergeProjects ---
-
-        function mergeProjects(proj1, proj2) {
-            const arr1 = ensureProjectsArray(proj1);
-            const arr2 = ensureProjectsArray(proj2);
-            if (!arr1.length && !arr2.length) return [];
-            if (!arr1.length) return arr2;
-            if (!arr2.length) return arr1;
-
-            const projectKey = (proj) =>
-                _stripNoise(proj.name || '').replace(/\s+/g, '');
-
-            const seen = new Map();
-            const combined = [];
-            for (const proj of [...arr1, ...arr2]) {
-                const key = projectKey(proj);
-                if (!key) continue;
-                if (!seen.has(key)) {
-                    seen.set(key, proj);
-                    combined.push(proj);
-                } else if ((proj.description || '').length > (seen.get(key).description || '').length) {
-                    // Keep longer description version
-                    const idx = combined.indexOf(seen.get(key));
-                    combined[idx] = proj;
-                    seen.set(key, proj);
-                }
-            }
-            return combined;
+            
+            // Return deduplicated skills
+            return Array.from(skillMap.values()).join(' | ');
         }
 
         async function extractTextFromFile(file) {
@@ -7549,12 +7329,21 @@ Rules:
             const form = document.getElementById('manual-entry-form');
             form.classList.remove('hidden');
             form.classList.add('active');
-            // Restore any draft the user was working on
+
+            // Pre-populate from existing profileData first, then let any in-progress draft override
+            const fields = ['name','email','phone','location','linkedin','experience','skills','education','certifications','projects'];
+            if (profileData) {
+                fields.forEach(id => {
+                    const el = document.getElementById(id);
+                    const value = id === 'experience' ? experienceToText(profileData[id]) : profileData[id];
+                    if (el && value) el.value = value;
+                });
+            }
             try {
                 const draft = localStorage.getItem('manual-entry-draft');
                 if (draft) {
                     const d = JSON.parse(draft);
-                    ['name','email','phone','location','linkedin','experience','skills','education','certifications','projects'].forEach(id => {
+                    fields.forEach(id => {
                         const el = document.getElementById(id);
                         if (el && d[id]) el.value = d[id];
                     });
@@ -7627,11 +7416,11 @@ Rules:
                 phone: phone,
                 location: location,
                 linkedin: linkedin,
-                experience: parseExperienceText(experience),
-                skills: parseSkillsText(skills),
+                experience: experience,
+                skills: skills,
                 education: education,
-                certifications: parseCertificationsText(certifications),
-                projects: parseProjectsText(projects),
+                certifications: certifications,
+                projects: projects,
                 backgroundContext: profileData?.backgroundContext || ''
             };
 
@@ -7881,7 +7670,7 @@ Return ONLY the JSON.`;
                 return {
                     metadata: { version: "2.0" },
                     name: '', email: '', phone: '', location: '', linkedin: '',
-                    experience: [], skills: '', education: '', certifications: [], projects: []
+                    experience: '', skills: '', education: '', certifications: '', projects: ''
                 };
             }
             
@@ -7900,8 +7689,8 @@ Return ONLY the JSON.`;
                 phone: '',
                 location: '',
                 linkedin: '',
-                experience: [],
-                skills: [],
+                experience: '',
+                skills: '',
                 education: '',
                 certifications: '',
                 projects: ''
@@ -8090,19 +7879,15 @@ Return ONLY the JSON.`;
             
             // Clean up: remove multiple consecutive spaces
             result.experience = result.experience.replace(/  +/g, ' ').trim();
-            result.experience = parseExperienceText(result.experience);
-            result.skills = typeof result.skills === 'string' ? result.skills.replace(/  +/g, ' ').trim() : result.skills;
-            result.skills = parseSkillsText(result.skills);
+            result.skills = result.skills.replace(/  +/g, ' ').trim();
             result.education = result.education.replace(/  +/g, ' ').trim();
             result.certifications = result.certifications.replace(/  +/g, ' ').trim();
-            result.certifications = parseCertificationsText(result.certifications);
             result.projects = result.projects.replace(/  +/g, ' ').trim();
-            result.projects = parseProjectsText(result.projects);
             
             debugLog('=== FALLBACK PARSER OUTPUT ===');
             debugLog('Name:', result.name);
             debugLog('Email:', result.email);
-            debugLog('Experience roles:', Array.isArray(result.experience) ? result.experience.length : result.experience.length);
+            debugLog('Experience length:', result.experience.length);
             debugLog('Skills length:', result.skills.length);
             debugLog('Education length:', result.education.length);
             debugLog('Certifications length:', result.certifications.length);
@@ -8113,50 +7898,33 @@ Return ONLY the JSON.`;
         }
 
         // PROFILE FORMAT MIGRATION
-
-        // Convert old "dates" field to "startDate"/"endDate" on experience objects
-        function _migrateExperienceDates(profile) {
-            if (!Array.isArray(profile.experience)) return;
-            for (const role of profile.experience) {
-                if (role.dates && !role.startDate && !role.endDate) {
-                    const parts = (role.dates || '').split(/\s*[\u2013\u2014\-]\s*/);
-                    role.startDate = (parts[0] || '').trim();
-                    role.endDate = parts.length > 1 ? parts.slice(1).join(' - ').trim() : '';
-                    delete role.dates;
-                }
-            }
-        }
-
         // Converts old nested format (v1.0) to new flat format (v2.0)
         function migrateProfileToV2(profile) {
             // Return null if no profile
             if (!profile) return null;
             
-            // Already v2.0 - migrate experience dates if needed
+            // Already v2.0 - return as-is
             if (profile.metadata?.version === "2.0") {
-                _migrateExperienceDates(profile);
                 return profile;
             }
             
             // Migrate from old nested format (v1.0)
             if (profile.contact) {
                 debugLog('Migrating profile from v1.0 (nested) to v2.0 (flat)');
-                const migrated = {
+                return {
                     metadata: { version: "2.0" },
                     name: profile.contact.name || '',
                     email: profile.contact.email || '',
                     phone: profile.contact.phone || '',
                     location: profile.contact.location || '',
                     linkedin: profile.contact.linkedin || '',
-                    experience: ensureExperienceArray(profile.experience),
-                    skills: ensureSkillsArray(profile.skills),
+                    experience: profile.experience || '',
+                    skills: profile.skills || '',
                     education: profile.education || '',
-                    certifications: ensureCertificationsArray(profile.certifications),
-                    projects: ensureProjectsArray(profile.projects),
+                    certifications: profile.certifications || '',
+                    projects: profile.projects || '',
                     backgroundContext: profile.backgroundContext || ''
                 };
-                _migrateExperienceDates(migrated);
-                return migrated;
             }
             
             // Unknown format - return as-is and hope for the best
@@ -8164,7 +7932,7 @@ Return ONLY the JSON.`;
             return profile;
         }
 
-        function displayProfileForReview(pendingConflicts) {
+        function displayProfileForReview() {
             // Migrate to v2.0 if needed
             profileData = migrateProfileToV2(profileData);
             
@@ -8174,19 +7942,15 @@ Return ONLY the JSON.`;
             const phone = profileData.phone || '';
             const location = profileData.location || '';
             const linkedin = profileData.linkedin || '';
-            const experience = ensureExperienceArray(profileData.experience);
-            const skillsText = flattenSkills(profileData.skills);
+            const experienceText = experienceToText(profileData.experience);
+            const skillsText = profileData.skills || '';
             const educationText = profileData.education || '';
-            const certifications = ensureCertificationsArray(profileData.certifications);
-            const projectsText = flattenProjects(profileData.projects);
+            const certificationsText = profileData.certifications || '';
+            const projectsText = profileData.projects || '';
             const backgroundContextText = profileData.backgroundContext || '';
             
-            // Store pending conflicts for resolution
-            window._pendingConflicts = pendingConflicts || [];
-            
             const reviewDiv = document.getElementById('profile-review');
-            
-            let html = `
+            reviewDiv.innerHTML = `
                 <div class="form-group">
                     <label>Name</label>
                     <input type="text" id="review-name" value="${escapeHtml(name)}">
@@ -8207,386 +7971,48 @@ Return ONLY the JSON.`;
                     <label>LinkedIn</label>
                     <input type="url" id="review-linkedin" value="${escapeHtml(linkedin)}">
                 </div>
-                <div class="profile-cards">
-                    <div class="section-label">Work Experience</div>
-                    <div id="experience-cards">`;
-            
-            // Render experience cards
-            experience.forEach((role, i) => {
-                html += _renderRoleCard(role, i, experience.length, 'exp');
-                // Check if any pending conflict matches this role
-                const conflicts = window._pendingConflicts || [];
-                for (let c = 0; c < conflicts.length; c++) {
-                    if (conflicts[c].baseIndex === i) {
-                        html += _renderConflictCard(conflicts[c], c);
-                    }
-                }
-            });
-            
-            // Conflicts for new roles (no base match) — show after all existing
-            const newRoleConflicts = (window._pendingConflicts || []).filter(c => c.baseIndex === -1);
-            for (let c = 0; c < newRoleConflicts.length; c++) {
-                const globalIdx = (window._pendingConflicts || []).indexOf(newRoleConflicts[c]);
-                html += _renderConflictCard(newRoleConflicts[c], globalIdx);
-            }
-            
-            html += `</div>
-                    <button class="add-entry-btn" onclick="addExperienceCard()">+ Add role</button>
-                    
-                    <div class="section-label">Skills</div>
+                <div class="form-group">
+                    <label>Work Experience</label>
+                    <textarea id="review-experience" rows="15">${escapeHtml(experienceText)}</textarea>
                 </div>
                 <div class="form-group">
-                    <textarea id="review-skills" rows="6">${escapeHtml(skillsText)}</textarea>
+                    <label>Skills</label>
+                    <textarea id="review-skills" rows="8">${escapeHtml(skillsText)}</textarea>
                 </div>
-                <div class="profile-cards">
-                    <div class="section-label">Certifications</div>
-                    <div id="cert-cards">`;
-            
-            // Render certification cards
-            certifications.forEach((cert, i) => {
-                html += _renderCertCard(cert, i, certifications.length);
-            });
-            
-            html += `</div>
-                    <button class="add-entry-btn" onclick="addCertCard()">+ Add certification</button>
-                    
-                    <div class="section-label">Projects</div>
-                    <div id="project-cards">`;
-            
-            // Render project cards
-            const projects = ensureProjectsArray(profileData.projects);
-            projects.forEach((proj, i) => {
-                html += _renderProjectCard(proj, i, projects.length);
-            });
-            
-            html += `</div>
-                    <button class="add-entry-btn" onclick="addProjectCard()">+ Add project</button>
+                <div class="form-group">
+                    <label>Projects</label>
+                    <textarea id="review-projects" rows="6">${escapeHtml(projectsText)}</textarea>
                 </div>
                 <div class="form-group">
                     <label>Education</label>
                     <textarea id="review-education" rows="4">${escapeHtml(educationText)}</textarea>
                 </div>
                 <div class="form-group">
+                    <label>Certifications</label>
+                    <textarea id="review-certifications" rows="6">${escapeHtml(certificationsText)}</textarea>
+                </div>
+                <div class="form-group">
                     <label>Background Context</label>
-                    <p style="font-size: 13px; color: #64748b; margin: 0 0 8px 0; line-height: 1.5;">For experience and context that supports your profile but doesn't belong to a specific role.</p>
+                    <p style="font-size: 13px; color: #64748b; margin: 0 0 8px 0; line-height: 1.5;">For experience and context that supports your profile but doesn't belong to a specific role. If you've realized a job is missing from your resume, add it to Work Experience above — this field is for everything else.</p>
                     <textarea id="review-background-context" rows="5" placeholder="Informal leadership, transferable skills, context that your resume doesn't fully capture..."></textarea>
                 </div>
             `;
-            
-            reviewDiv.innerHTML = html;
             document.getElementById('review-background-context').value = backgroundContextText;
-        }
-        
-        // --- Card rendering helpers ---
-        
-        function _renderRoleCard(role, index, total, prefix) {
-            const e = (v) => escapeHtml(v || '');
-            return `<div class="role-card" data-type="${prefix}" data-index="${index}">
-                <div class="role-card-body">
-                    <div class="role-card-header">
-                        <span class="role-card-badge"><span class="dot"></span>Role ${index + 1} of ${total}</span>
-                        <button class="remove-btn" onclick="removeCard('${prefix}', ${index})">Remove</button>
-                    </div>
-                    <div class="field-row two-col">
-                        <div>
-                            <span class="field-label">Job title</span>
-                            <input type="text" class="field-input" data-field="title" value="${e(role.title)}">
-                        </div>
-                        <div>
-                            <span class="field-label">Company</span>
-                            <input type="text" class="field-input" data-field="company" value="${e(role.company)}">
-                        </div>
-                    </div>
-                    <div class="field-row three-col">
-                        <div>
-                            <span class="field-label">Location</span>
-                            <input type="text" class="field-input${role.location ? '' : ' empty-field'}" data-field="location" value="${e(role.location)}" placeholder="City, ST or Remote">
-                        </div>
-                        <div>
-                            <span class="field-label">Start date</span>
-                            <input type="text" class="field-input${role.startDate ? '' : ' empty-field'}" data-field="startDate" value="${e(role.startDate)}" placeholder="Month Year">
-                        </div>
-                        <div>
-                            <span class="field-label">End date</span>
-                            <input type="text" class="field-input${role.endDate ? '' : ' empty-field'}" data-field="endDate" value="${e(role.endDate)}" placeholder="Month Year or Present">
-                        </div>
-                    </div>
-                    <div>
-                        <span class="field-label">Description</span>
-                        <textarea class="field-input" data-field="description" rows="4">${e(role.description)}</textarea>
-                    </div>
-                </div>
-            </div>`;
-        }
-        
-        function _renderConflictCard(conflict, conflictIndex) {
-            const role = conflict.incoming;
-            const e = (v) => escapeHtml(v || '');
-            const matchLabel = conflict.baseIndex >= 0 
-                ? `Matches role ${conflict.baseIndex + 1}` 
-                : 'New role from upload';
-            return `<div class="role-card conflict" data-conflict-index="${conflictIndex}">
-                <div class="conflict-banner">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L15 14H1L8 1Z" fill="#f59e0b"/><rect x="7.25" y="5.5" width="1.5" height="4" rx="0.75" fill="#78350f"/><circle cx="8" cy="11.5" r="0.85" fill="#78350f"/></svg>
-                    <span>Duplicate detected — ${matchLabel}</span>
-                </div>
-                <div class="role-card-body">
-                    <div class="field-row two-col">
-                        <div>
-                            <span class="field-label">Job title</span>
-                            <input type="text" class="field-input" data-field="title" value="${e(role.title)}" readonly>
-                        </div>
-                        <div>
-                            <span class="field-label">Company</span>
-                            <input type="text" class="field-input" data-field="company" value="${e(role.company)}" readonly>
-                        </div>
-                    </div>
-                    <div class="field-row three-col">
-                        <div>
-                            <span class="field-label">Location</span>
-                            <input type="text" class="field-input${role.location ? '' : ' empty-field'}" data-field="location" value="${e(role.location)}" placeholder="empty" readonly>
-                        </div>
-                        <div>
-                            <span class="field-label">Start date</span>
-                            <input type="text" class="field-input${role.startDate ? '' : ' empty-field'}" data-field="startDate" value="${e(role.startDate)}" placeholder="empty" readonly>
-                        </div>
-                        <div>
-                            <span class="field-label">End date</span>
-                            <input type="text" class="field-input${role.endDate ? '' : ' empty-field'}" data-field="endDate" value="${e(role.endDate)}" placeholder="empty" readonly>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="field-label">Description</span>
-                        <textarea class="field-input" data-field="description" rows="3" readonly>${e(role.description)}</textarea>
-                    </div>
-                </div>
-                <div class="conflict-actions">
-                    <button onclick="resolveConflict(${conflictIndex}, 'keep')">Keep existing</button>
-                    <button onclick="resolveConflict(${conflictIndex}, 'replace')">Replace with this</button>
-                    <button class="merge-btn" onclick="resolveConflict(${conflictIndex}, 'merge')">Merge descriptions</button>
-                    <button onclick="resolveConflict(${conflictIndex}, 'add')">Add as separate role</button>
-                </div>
-            </div>`;
-        }
-        
-        function _renderCertCard(cert, index, total) {
-            const e = (v) => escapeHtml(v || '');
-            return `<div class="role-card" data-type="cert" data-index="${index}">
-                <div class="role-card-body">
-                    <div class="role-card-header">
-                        <span class="role-card-badge"><span class="dot"></span>Certification ${index + 1} of ${total}</span>
-                        <button class="remove-btn" onclick="removeCard('cert', ${index})">Remove</button>
-                    </div>
-                    <div class="field-row cert-col">
-                        <div>
-                            <span class="field-label">Certification name</span>
-                            <input type="text" class="field-input" data-field="name" value="${e(cert.name)}">
-                        </div>
-                        <div>
-                            <span class="field-label">Issuer</span>
-                            <input type="text" class="field-input" data-field="issuer" value="${e(cert.issuer)}">
-                        </div>
-                        <div>
-                            <span class="field-label">Date earned</span>
-                            <input type="text" class="field-input" data-field="date" value="${e(cert.date || cert.dateEarned)}">
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-        }
-        
-        function _renderProjectCard(proj, index, total) {
-            const e = (v) => escapeHtml(v || '');
-            return `<div class="role-card" data-type="proj" data-index="${index}">
-                <div class="role-card-body">
-                    <div class="role-card-header">
-                        <span class="role-card-badge"><span class="dot"></span>Project ${index + 1} of ${total}</span>
-                        <button class="remove-btn" onclick="removeCard('proj', ${index})">Remove</button>
-                    </div>
-                    <div class="field-row two-col">
-                        <div>
-                            <span class="field-label">Project name</span>
-                            <input type="text" class="field-input" data-field="name" value="${e(proj.name)}">
-                        </div>
-                        <div>
-                            <span class="field-label">Type / category</span>
-                            <input type="text" class="field-input" data-field="type" value="${e(proj.type)}">
-                        </div>
-                    </div>
-                    <div>
-                        <span class="field-label">Description</span>
-                        <textarea class="field-input" data-field="description" rows="3">${e(proj.description)}</textarea>
-                    </div>
-                </div>
-            </div>`;
-        }
-        
-        // --- Card action handlers ---
-        
-        function removeCard(type, index) {
-            const container = type === 'exp' ? 'experience-cards' : type === 'cert' ? 'cert-cards' : 'project-cards';
-            const cards = document.getElementById(container).querySelectorAll(`.role-card[data-type="${type}"]`);
-            if (cards[index]) {
-                cards[index].remove();
-                _renumberCards(container, type);
-            }
-        }
-        
-        function _renumberCards(containerId, type) {
-            const label = type === 'exp' ? 'Role' : type === 'cert' ? 'Certification' : 'Project';
-            const cards = document.getElementById(containerId).querySelectorAll(`.role-card[data-type="${type}"]`);
-            cards.forEach((card, i) => {
-                card.dataset.index = i;
-                const badge = card.querySelector('.role-card-badge');
-                if (badge) badge.innerHTML = `<span class="dot"></span>${label} ${i + 1} of ${cards.length}`;
-            });
-        }
-        
-        function addExperienceCard() {
-            const container = document.getElementById('experience-cards');
-            const count = container.querySelectorAll('.role-card[data-type="exp"]').length;
-            const html = _renderRoleCard({title:'',company:'',location:'',startDate:'',endDate:'',description:''}, count, count + 1, 'exp');
-            container.insertAdjacentHTML('beforeend', html);
-            _renumberCards('experience-cards', 'exp');
-            // Focus the new card's title field
-            const newCard = container.querySelector('.role-card[data-type="exp"]:last-child');
-            if (newCard) newCard.querySelector('input[data-field="title"]').focus();
-        }
-        
-        function addCertCard() {
-            const container = document.getElementById('cert-cards');
-            const count = container.querySelectorAll('.role-card[data-type="cert"]').length;
-            const html = _renderCertCard({name:'',issuer:'',date:''}, count, count + 1);
-            container.insertAdjacentHTML('beforeend', html);
-            _renumberCards('cert-cards', 'cert');
-            const newCard = container.querySelector('.role-card[data-type="cert"]:last-child');
-            if (newCard) newCard.querySelector('input[data-field="name"]').focus();
-        }
-        
-        function addProjectCard() {
-            const container = document.getElementById('project-cards');
-            const count = container.querySelectorAll('.role-card[data-type="proj"]').length;
-            const html = _renderProjectCard({name:'',type:'',description:''}, count, count + 1);
-            container.insertAdjacentHTML('beforeend', html);
-            _renumberCards('project-cards', 'proj');
-            const newCard = container.querySelector('.role-card[data-type="proj"]:last-child');
-            if (newCard) newCard.querySelector('input[data-field="name"]').focus();
-        }
-        
-        function resolveConflict(conflictIndex, action) {
-            const conflict = window._pendingConflicts[conflictIndex];
-            if (!conflict) return;
-            
-            const conflictCard = document.querySelector(`.role-card.conflict[data-conflict-index="${conflictIndex}"]`);
-            if (!conflictCard) return;
-            
-            const container = document.getElementById('experience-cards');
-            
-            if (action === 'keep') {
-                // Discard incoming — just remove the conflict card
-                conflictCard.remove();
-            } else if (action === 'replace') {
-                // Overwrite the base card with incoming data
-                if (conflict.baseIndex >= 0) {
-                    const baseCards = container.querySelectorAll('.role-card[data-type="exp"]');
-                    const baseCard = baseCards[conflict.baseIndex];
-                    if (baseCard) {
-                        const incoming = conflict.incoming;
-                        baseCard.querySelector('input[data-field="title"]').value = incoming.title || '';
-                        baseCard.querySelector('input[data-field="company"]').value = incoming.company || '';
-                        baseCard.querySelector('input[data-field="location"]').value = incoming.location || '';
-                        baseCard.querySelector('input[data-field="startDate"]').value = incoming.startDate || '';
-                        baseCard.querySelector('input[data-field="endDate"]').value = incoming.endDate || '';
-                        baseCard.querySelector('textarea[data-field="description"]').value = incoming.description || '';
-                    }
-                }
-                conflictCard.remove();
-            } else if (action === 'merge') {
-                // Fill empty structured fields from incoming, concatenate descriptions
-                if (conflict.baseIndex >= 0) {
-                    const baseCards = container.querySelectorAll('.role-card[data-type="exp"]');
-                    const baseCard = baseCards[conflict.baseIndex];
-                    if (baseCard) {
-                        const incoming = conflict.incoming;
-                        const fields = ['location', 'startDate', 'endDate'];
-                        for (const f of fields) {
-                            const input = baseCard.querySelector(`input[data-field="${f}"]`);
-                            if (input && !input.value.trim() && (incoming[f] || '').trim()) {
-                                input.value = incoming[f];
-                                input.classList.remove('empty-field');
-                            }
-                        }
-                        const descEl = baseCard.querySelector('textarea[data-field="description"]');
-                        if (descEl && (incoming.description || '').trim()) {
-                            descEl.value = (descEl.value || '').trim() + '\n' + incoming.description.trim();
-                        }
-                    }
-                }
-                conflictCard.remove();
-            } else if (action === 'add') {
-                // Add as a new regular card
-                const count = container.querySelectorAll('.role-card[data-type="exp"]').length;
-                const newCardHtml = _renderRoleCard(conflict.incoming, count, count + 1, 'exp');
-                conflictCard.insertAdjacentHTML('afterend', newCardHtml);
-                conflictCard.remove();
-                _renumberCards('experience-cards', 'exp');
-            }
-        }
-        
-        // --- Read cards back into profile data ---
-        
-        function _readExperienceFromCards() {
-            const cards = document.getElementById('experience-cards').querySelectorAll('.role-card[data-type="exp"]');
-            return Array.from(cards).map(card => ({
-                title: (card.querySelector('input[data-field="title"]') || {}).value || '',
-                company: (card.querySelector('input[data-field="company"]') || {}).value || '',
-                location: (card.querySelector('input[data-field="location"]') || {}).value || '',
-                startDate: (card.querySelector('input[data-field="startDate"]') || {}).value || '',
-                endDate: (card.querySelector('input[data-field="endDate"]') || {}).value || '',
-                description: (card.querySelector('textarea[data-field="description"]') || {}).value || ''
-            })).filter(r => r.title.trim() || r.company.trim() || r.description.trim());
-        }
-        
-        function _readCertificationsFromCards() {
-            const cards = document.getElementById('cert-cards').querySelectorAll('.role-card[data-type="cert"]');
-            return Array.from(cards).map(card => ({
-                name: (card.querySelector('input[data-field="name"]') || {}).value || '',
-                issuer: (card.querySelector('input[data-field="issuer"]') || {}).value || '',
-                date: (card.querySelector('input[data-field="date"]') || {}).value || ''
-            })).filter(c => c.name.trim());
-        }
-        
-        function _readProjectsFromCards() {
-            const cards = document.getElementById('project-cards').querySelectorAll('.role-card[data-type="proj"]');
-            return Array.from(cards).map(card => ({
-                name: (card.querySelector('input[data-field="name"]') || {}).value || '',
-                type: (card.querySelector('input[data-field="type"]') || {}).value || '',
-                description: (card.querySelector('textarea[data-field="description"]') || {}).value || ''
-            })).filter(p => p.name.trim() || p.description.trim());
         }
 
         async function confirmProfile() {
-            // Check for unresolved conflicts
-            const unresolvedConflicts = document.querySelectorAll('.role-card.conflict');
-            if (unresolvedConflicts.length > 0) {
-                toastWarning('Please resolve all duplicate conflicts before confirming your profile');
-                return;
-            }
-            
             // Get values from review fields
             const name = document.getElementById('review-name').value;
             const email = document.getElementById('review-email').value;
             const phone = document.getElementById('review-phone').value;
             const location = document.getElementById('review-location').value;
             const linkedin = document.getElementById('review-linkedin').value;
+            const experience = document.getElementById('review-experience').value;
             const skills = document.getElementById('review-skills').value;
+            const projects = document.getElementById('review-projects').value;
             const education = document.getElementById('review-education').value;
+            const certifications = document.getElementById('review-certifications').value;
             const backgroundContext = document.getElementById('review-background-context').value;
-            
-            // Read structured data from cards
-            const experience = _readExperienceFromCards();
-            const certifications = _readCertificationsFromCards();
-            const projects = _readProjectsFromCards();
             
             // Validate required fields
             if (!validators.required(name)) {
@@ -8623,7 +8049,7 @@ Return ONLY the JSON.`;
                 location: location,
                 linkedin: linkedin,
                 experience: experience,
-                skills: parseSkillsText(skills),
+                skills: skills,
                 projects: projects,
                 education: education,
                 certifications: certifications,
@@ -8639,9 +8065,6 @@ Return ONLY the JSON.`;
                 console.error('Error saving profile:', error);
             }
             
-            // Clear pending conflicts
-            window._pendingConflicts = [];
-            
             showSection('job-analysis-section');
         }
 
@@ -8651,18 +8074,46 @@ Return ONLY the JSON.`;
                 'This will permanently delete your profile. You\'ll need to upload or re-enter your information to continue.',
                 async () => {
                     profileData = null;
+                    // Clear stale DOM from the review section immediately
+                    const reviewDiv = document.getElementById('profile-review');
+                    if (reviewDiv) reviewDiv.innerHTML = '';
                     try {
                         await safeStorageDelete('job-assistant-profile');
                     } catch (error) {
-                        console.error('Error deleting profile:', error);
+                        console.error('Error deleting profile from storage:', error);
+                    }
+                    try {
+                        await deleteProfileFromCloud();
+                    } catch (error) {
+                        console.error('Error deleting profile from cloud:', error);
                     }
                     updateSetupNavVisibility();
                     showSection('setup-section');
                     hideManualEntry();
                     hideDocumentUpload();
+                    showToast('Profile deleted', 'success');
                 },
                 { confirmLabel: 'Delete Profile', cancelLabel: 'Cancel', danger: true }
             );
+        }
+
+        /**
+         * Normalise experience to a plain string regardless of whether it was
+         * stored as a free-text string or as a structured array of job objects.
+         */
+        function experienceToText(experience) {
+            if (!experience) return '';
+            if (typeof experience === 'string') return experience;
+            if (Array.isArray(experience)) {
+                return experience.map(e => {
+                    const parts = [];
+                    if (e.title || e.company) parts.push([e.title, e.company].filter(Boolean).join(' at '));
+                    if (e.startDate || e.endDate) parts.push([e.startDate, e.endDate].filter(Boolean).join(' – '));
+                    if (e.description) parts.push(e.description);
+                    return parts.join('\n');
+                }).join('\n\n');
+            }
+            return String(experience);
         }
 
         async function analyzeJob() {
@@ -8680,10 +8131,10 @@ Return ONLY the JSON.`;
             }
 
             // Check if profile has actual content (not just empty fields)
-            const hasContent = (profileData.experience && (Array.isArray(profileData.experience) ? profileData.experience.length > 0 : profileData.experience.trim())) ||
-                             (profileData.skills && (Array.isArray(profileData.skills) ? profileData.skills.length > 0 : profileData.skills.trim())) ||
+            const hasContent = experienceToText(profileData.experience).trim() ||
+                             (profileData.skills && profileData.skills.trim()) ||
                              (profileData.education && profileData.education.trim()) ||
-                             (profileData.certifications && (Array.isArray(profileData.certifications) ? profileData.certifications.length > 0 : profileData.certifications.trim()));
+                             (profileData.certifications && profileData.certifications.trim());
             
             if (!hasContent) {
                 toastWarning('Your profile is empty. Please upload a document or manually enter your profile information first');
@@ -8710,7 +8161,7 @@ Return ONLY the JSON.`;
             _proceedWithAnalysis(jobDesc);
         }
 
-        async function _proceedWithAnalysis(jobDesc) {
+        async function _proceedWithAnalysis(jobDesc, isGapReanalysis = false) {
 
             // Check if it's a URL
             if (jobDesc.startsWith('http://') || jobDesc.startsWith('https://') || jobDesc.startsWith('www.')) {
@@ -8731,15 +8182,17 @@ Return ONLY the JSON.`;
             const resultDiv = document.getElementById('analysis-result');
             resultDiv.classList.remove('hidden');
             
-            // Check usage limit before proceeding
-            const usageCheck = await checkUsageLimit('analyses');
-            if (!usageCheck.allowed) {
-                resultDiv.innerHTML = '';
-                showUpgradeModal('analyses', usageCheck.reason, usageCheck.subscription);
-                return;
+            if (!isGapReanalysis) {
+                // Check usage limit before proceeding
+                const usageCheck = await checkUsageLimit('analyses');
+                if (!usageCheck.allowed) {
+                    resultDiv.innerHTML = '';
+                    showUpgradeModal('analyses', usageCheck.reason, usageCheck.subscription);
+                    return;
+                }
             }
-            
-            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing job match...</p></div>';
+
+            resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>${isGapReanalysis ? 'Re-analyzing with your updated profile...' : 'Analyzing job match...'}</p></div>`;
 
             try {
                 const systemPrompt = `You are an experienced recruiter analyzing job match quality using a calibrated scoring system.
@@ -8881,12 +8334,27 @@ Return your analysis in this JSON format:
 
                 const response = await callClaudeAPI(systemPrompt, `Job Description:\n${jobDesc}`);
                 currentAnalysis = JSON.parse(response);
-                
-                // Increment usage counter after successful analysis
-                await incrementUsage('analyses');
+
+                // Gap context can only help — floor the re-analysis score at the original
+                if (isGapReanalysis && _preGapScore !== null && currentAnalysis.matchScore < _preGapScore) {
+                    currentAnalysis.matchScore = _preGapScore;
+                }
+
+                if (!isGapReanalysis) {
+                    await incrementUsage('analyses');
+                }
+                // Log run to analyses_log (non-blocking)
+                logAnalysis(currentAnalysis);
                 updateUsageDisplay();
-                
+
                 displayAnalysisResults();
+
+                // Clear JD textarea now that analysis is complete.
+                // Spec: JD persists through navigation, clears only after a successful analysis.
+                if (!isGapReanalysis) {
+                    const jdTextarea = document.getElementById('job-description');
+                    if (jdTextarea) jdTextarea.value = '';
+                }
             } catch (error) {
                 console.error('Error analyzing job:', error);
                 resultDiv.innerHTML = `<div class="alert alert-danger">Error analyzing job. Please try again.</div>`;
@@ -8965,9 +8433,13 @@ Return your analysis in this JSON format:
                             These may already be part of your experience. If so, you can help us include them in your resume.
                         </p>
                         <div id="gap-context-area">
-                            <button class="btn-secondary" onclick="openGapModal()" style="background: #FAEEDA; color: #633806; border: 1.5px solid #EF9F27; font-size: 14px;">
-                                Help us fill in the gaps
-                            </button>
+                            ${profileData.backgroundContext ? `
+                                <span id="gap-pill" style="display:inline-flex; align-items:center; gap:6px; background:#FAEEDA; color:#633806; border:1px solid #EF9F27; border-radius:20px; padding:5px 14px; font-size:13px; font-weight:500;">
+                                    ✓ Background Context updated
+                                </span>` : `
+                                <button class="btn-secondary" onclick="openGapModal()" style="background: #FAEEDA; color: #633806; border: 1.5px solid #EF9F27; font-size: 14px;">
+                                    Help us fill in the gaps
+                                </button>`}
                         </div>
                     </div>
                 ` : ''}
@@ -8996,6 +8468,20 @@ Return your analysis in this JSON format:
                     `}
                 </div>
                 
+                ${(() => {
+                    const preGap = _preGapScore;
+                    _preGapScore = null;
+                    if (preGap === null) return '';
+                    if (score >= 70) {
+                        return `<div style="margin-top:20px;padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;line-height:1.5;">
+                            ✅ Your background context was saved and your match score moved from <strong>${Math.round(preGap)}%</strong> to <strong>${score}%</strong>. Generate Resume is now unlocked.
+                        </div>`;
+                    }
+                    const raised = score > preGap;
+                    return `<div style="margin-top:20px;padding:14px 18px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;font-size:14px;color:#92400e;line-height:1.5;">
+                        Your background context was saved${raised ? ` and your match score moved from <strong>${Math.round(preGap)}%</strong> to <strong>${score}%</strong>` : ''}. Generate Resume unlocks at 70% — keep editing your profile to close the remaining gaps.
+                    </div>`;
+                })()}
                 <div class="button-group" style="margin-top: 32px;">
                     ${currentAnalysis.gaps && currentAnalysis.gaps.length > 0 ? `
                         <button class="btn-secondary" onclick="editProfileToAddressGaps()">Edit Profile to Address Gaps</button>
@@ -9037,12 +8523,14 @@ Return your analysis in this JSON format:
             // Remove the alert
             const alert = document.querySelector('.edit-gaps-alert');
             if (alert) alert.remove();
-            
+
             // Re-run the analysis with updated profile
             if (currentJobDescription) {
+                const jdToRestore = currentJobDescription; // capture before showSection clears it
                 showSection('job-analysis-section');
-                // Automatically re-analyze with updated profile
                 setTimeout(() => {
+                    const textarea = document.getElementById('job-description');
+                    if (textarea) textarea.value = jdToRestore;
                     analyzeJob();
                 }, 500);
             } else {
@@ -9203,15 +8691,11 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
                 closeGapModal();
                 const backBtn = document.getElementById('gap-back-btn');
                 if (backBtn) backBtn.remove();
-                const gapArea = document.getElementById('gap-context-area');
-                if (gapArea) {
-                    gapArea.innerHTML = `
-                        <span id="gap-pill" style="display:inline-flex; align-items:center; gap:6px; background:#FAEEDA; color:#633806; border:1px solid #EF9F27; border-radius:20px; padding:5px 14px; font-size:13px; font-weight:500;">
-                            ✓ Background Context updated
-                            <span onclick="clearGapPill()" style="cursor:pointer; margin-left:4px; font-size:14px; line-height:1;" title="Dismiss">✕</span>
-                        </span>`;
+                showToast('Background context saved. Re-analyzing...', 'success');
+                if (currentJobDescription) {
+                    _preGapScore = currentAnalysis?.matchScore ?? null;
+                    await _proceedWithAnalysis(currentJobDescription, true);
                 }
-                showToast('Your background context has been added to your profile.', 'success');
             } catch(e) {
                 closeGapModal();
                 showToast('Something went wrong updating your profile. Please try again.', 'error');
@@ -9229,72 +8713,6 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
         }
 
         // === END GAP CONTEXT MODAL FUNCTIONS ===
-
-        async function reAnalyzeWithResume(resumeText) {
-            try {
-                const systemPrompt = `You are an experienced recruiter analyzing job match quality using a calibrated scoring system.
-
-SCORING FRAMEWORK (Total = 100 points):
-- Required Qualifications = 80 points (divide evenly among all required quals)
-- Preferred/Bonus Qualifications = 20 points (divide evenly among all preferred quals)
-- Maximum possible score = 100%
-
-PARTIAL CREDIT RULES:
-- Exact match = 100% of points for that qualification
-- Close match (e.g., 9 years when 10+ required, related certification) = 90-95% of points
-- Transferable skill (e.g., fintech ops when data center ops required) = 60-80% of points based on relevance
-- Related but not direct (e.g., AI infrastructure when data center infrastructure required) = 60-70% of points
-- Missing entirely = 0% of points
-
-SCORE INTERPRETATION:
-- 90-100%: Excellent Match - Meets all/nearly all required + strong on preferred
-- 80-89%: Strong Match - Meets all required, some preferred
-- 70-79%: Good Match - Meets most required, competitive candidate
-- 60-69%: Fair Match - Meets minimum required, notable gaps
-- Below 60%: Poor Match - Missing critical requirements
-
-IMPORTANT: This is a TAILORED RESUME based on the original profile. Score it objectively against the job requirements. It may score HIGHER if well-optimized and emphasizes relevant skills, LOWER if important details were omitted due to space constraints, or EQUAL if it's a faithful representation. Do not assume it should score higher just because it was generated. However, when scoring transferable skills, be fair (e.g., if they have "data infrastructure" and job wants "AI infrastructure," that counts as related experience). Skills must actually exist in the resume - do not assume skills that aren't listed.
-
-Job Description:
-${currentJobDescription}
-
-Tailored Resume:
-${resumeText}
-
-CRITICAL: Respond with ONLY valid JSON, no other text. Use this exact format:
-{
-    "matchPercentage": 85,
-    "matchLabel": "Strong Match",
-    "keywordsAdded": 15,
-    "atsCompatible": true,
-    "bulletMetrics": 80,
-    "improvementAreas": ["area1", "area2"]
-}`;
-
-                const response = await callClaudeAPI(systemPrompt, 'Analyze this resume against the job description.');
-                
-                // Extract JSON from response - handle various formats
-                let jsonText = response.trim();
-                
-                // Remove markdown code fences
-                jsonText = jsonText.replace(/```json\n?/g, '');
-                jsonText = jsonText.replace(/```\n?/g, '');
-                
-                // Find JSON object boundaries
-                const firstBrace = jsonText.indexOf('{');
-                const lastBrace = jsonText.lastIndexOf('}');
-                
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-                }
-                
-                return JSON.parse(jsonText);
-            } catch (error) {
-                console.error('Error re-analyzing resume:', error);
-                console.error('Response was:', response);
-                return null;
-            }
-        }
 
         function getMatchLabel(matchPercentage) {
             if (matchPercentage >= 90) return 'Excellent Match';
@@ -9565,10 +8983,6 @@ CRITICAL: Respond with ONLY valid JSON, no other text. Use this exact format:
             try {
                 // Create profile copy with conditional location
                 const profileForResume = {...profileData};
-                profileForResume.experience = flattenExperience(profileForResume.experience);
-                profileForResume.skills = flattenSkills(profileForResume.skills);
-                profileForResume.certifications = flattenCertifications(profileForResume.certifications);
-                profileForResume.projects = flattenProjects(profileForResume.projects);
                 if (!shouldIncludeLocation()) {
                     profileForResume.contact = {...profileForResume.contact, location: ''};
                 }
@@ -10056,10 +9470,6 @@ Return ONLY valid JSON:
             try {
                 // Create profile copy with conditional location
                 const profileForResume = {...profileData};
-                profileForResume.experience = flattenExperience(profileForResume.experience);
-                profileForResume.skills = flattenSkills(profileForResume.skills);
-                profileForResume.certifications = flattenCertifications(profileForResume.certifications);
-                profileForResume.projects = flattenProjects(profileForResume.projects);
                 if (!shouldIncludeLocation()) {
                     profileForResume.location = '';
                 }
@@ -10163,9 +9573,27 @@ Return ONLY valid JSON:
             }
         }
 
-        async function generateCoverLetter() {
+        let _toneModalCallback = null;
+
+        function openToneModal(callback) {
+            _toneModalCallback = callback;
+            document.getElementById('tone-modal').classList.add('show');
+        }
+
+        function closeToneModal() {
+            document.getElementById('tone-modal').classList.remove('show');
+            _toneModalCallback = null;
+        }
+
+        function selectCoverLetterTone(tone) {
+            const callback = _toneModalCallback;
+            closeToneModal();
+            if (callback) callback(tone);
+        }
+
+        async function generateCoverLetter(tone = null) {
             // Check acknowledgment first
-            if (!checkAcknowledgmentBeforeGeneration(() => generateCoverLetter())) {
+            if (!checkAcknowledgmentBeforeGeneration(() => generateCoverLetter(tone))) {
                 return;
             }
 
@@ -10190,6 +9618,12 @@ Return ONLY valid JSON:
                 return;
             }
 
+            // Show tone selection modal if no tone chosen yet
+            if (!tone) {
+                openToneModal((selectedTone) => generateCoverLetter(selectedTone));
+                return;
+            }
+
             const resultsContent = document.getElementById('results-content');
             resultsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating cover letter...</p></div>';
             showSection('results-section');
@@ -10197,10 +9631,6 @@ Return ONLY valid JSON:
             try {
                 // Create profile copy with conditional location
                 const profileForCover = {...profileData};
-                profileForCover.experience = flattenExperience(profileForCover.experience);
-                profileForCover.skills = flattenSkills(profileForCover.skills);
-                profileForCover.certifications = flattenCertifications(profileForCover.certifications);
-                profileForCover.projects = flattenProjects(profileForCover.projects);
                 if (!shouldIncludeLocation()) {
                     profileForCover.location = '';
                 }
@@ -10314,6 +9744,17 @@ SENIOR: Direct and specific. One strong example per paragraph, not a list of thr
 ` : `
 MID: Confident, not stiff. One concrete example with a number that feels earned, not dropped in. Conversational rhythm — can start a sentence with "And" or "But." 180-240 words. Three paragraphs.
 `}
+
+---
+
+TONE (overrides defaults where they conflict):
+${tone === 'formal'
+  ? 'Formal — No contractions. Full, complete sentences. Measured and professional throughout. Structured paragraphs.'
+  : tone === 'conversational'
+  ? 'Conversational — Contractions throughout. Reads like a confident person talking, not presenting. Warm but not casual.'
+  : tone === 'confident'
+  ? 'Confident — Assertive and declarative. Short, punchy sentences. Claims land without hedging or softening. Conviction in every line.'
+  : 'Concise — Maximum impact, minimum words. Every sentence earns its place. Cut anything that doesn\'t add. Shorter is better.'}
 
 ---
 
@@ -10693,6 +10134,51 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
         </main>
     
     <!-- Gap Context Modal -->
+    <!-- Tone Selection Modal -->
+    <div id="tone-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tone-modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="tone-modal-title" style="color: white; font-size: 22px; margin-bottom: 6px;">Choose a tone</h2>
+                <p style="color: #cbd5e1; font-size: 14px;">Select how you'd like your cover letter to read.</p>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+                    <button onclick="selectCoverLetterTone('formal')"
+                            onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f1ff'"
+                            onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"
+                            style="display:block;width:100%;padding:16px;text-align:left;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;">Formal</div>
+                        <div style="font-size:13px;color:#64748b;">Measured, structured, no contractions</div>
+                    </button>
+                    <button onclick="selectCoverLetterTone('conversational')"
+                            onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f1ff'"
+                            onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"
+                            style="display:block;width:100%;padding:16px;text-align:left;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;">Conversational</div>
+                        <div style="font-size:13px;color:#64748b;">Warm and direct, contractions welcome</div>
+                    </button>
+                    <button onclick="selectCoverLetterTone('confident')"
+                            onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f1ff'"
+                            onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"
+                            style="display:block;width:100%;padding:16px;text-align:left;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;">Confident</div>
+                        <div style="font-size:13px;color:#64748b;">Assertive and punchy, no hedging</div>
+                    </button>
+                    <button onclick="selectCoverLetterTone('concise')"
+                            onmouseover="this.style.borderColor='#667eea';this.style.background='#f0f1ff'"
+                            onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"
+                            style="display:block;width:100%;padding:16px;text-align:left;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px;">Concise</div>
+                        <div style="font-size:13px;color:#64748b;">Maximum impact, minimum words</div>
+                    </button>
+                </div>
+                <div style="display:flex;justify-content:flex-end;">
+                    <button class="btn-secondary" onclick="closeToneModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="gap-modal"
          class="modal-overlay"
          role="dialog"
