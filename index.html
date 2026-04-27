@@ -5770,6 +5770,9 @@ async function getUserSubscription() {
         let currentJobDescription = null;
         let currentAnalysis = null;
         let _preGapScore = null; // score before a gap-context re-analysis, for messaging
+        let _pendingIncomingProfile = null; // incoming profile awaiting conflict resolution
+        let _pendingConflicts = [];          // array of {id, label, current, incoming}
+        let _conflictResolutions = {};       // {fieldId: 'keep'|'use'}
         let currentResumeText = null;
         let currentCoverLetterText = null;
         let currentViewedFileContent = null;
@@ -6722,19 +6725,23 @@ Return ONLY the JSON.`;
             try {
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
-                profileData = mergeProfiles(profileData, tempProfile);
+                const conflicts = detectUploadConflicts(profileData, tempProfile);
 
-                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
-                await saveProfileToCloud(profileData);
-
-                statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
-                displayProfileForReview();
-
-                // Clear status after 3 seconds
-                setTimeout(() => {
-                    statusDiv.classList.add('hidden');
-                    statusDiv.innerHTML = '';
-                }, 3000);
+                if (conflicts.length === 0) {
+                    // No conflicts — auto-merge and save immediately
+                    profileData = mergeProfiles(profileData, tempProfile);
+                    await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+                    await saveProfileToCloud(profileData);
+                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
+                    displayProfileForReview();
+                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                } else {
+                    // Conflicts found — stash incoming profile and show resolution cards
+                    _pendingIncomingProfile = tempProfile;
+                    _pendingConflicts = conflicts;
+                    _conflictResolutions = {};
+                    statusDiv.innerHTML = renderConflictCards(conflicts);
+                }
 
             } catch (error) {
                 console.error('Review upload error:', error);
@@ -6742,6 +6749,143 @@ Return ONLY the JSON.`;
             }
 
             event.target.value = '';
+        }
+
+        function detectUploadConflicts(existing, incoming) {
+            const CONFLICT_FIELDS = [
+                { id: 'name',     label: 'Full Name' },
+                { id: 'email',    label: 'Email' },
+                { id: 'phone',    label: 'Phone' },
+                { id: 'location', label: 'Location' },
+                { id: 'linkedin', label: 'LinkedIn' },
+                { id: 'summary',  label: 'Professional Summary' }
+            ];
+            const conflicts = [];
+            for (const { id, label } of CONFLICT_FIELDS) {
+                const cur = ((existing || {})[id] || '').toString().trim();
+                const inc = ((incoming || {})[id] || '').toString().trim();
+                if (cur && inc && cur !== inc) {
+                    conflicts.push({ id, label, current: cur, incoming: inc });
+                }
+            }
+            return conflicts;
+        }
+
+        function renderConflictCards(conflicts) {
+            const cards = conflicts.map(c => {
+                const preview = (val) => val.length > 120 ? val.slice(0, 117) + '…' : val;
+                return `
+                <div id="conflict-card-${c.id}" class="conflict-card" style="
+                    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;">
+                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${c.label}</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="
+                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
+                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.current)}</span>
+                        </button>
+                        <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="
+                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
+                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
+                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.incoming)}</span>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `
+            <div style="margin-bottom: 16px;">
+                <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
+                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
+                    The uploaded resume differs from your saved profile in the fields below.
+                    Choose which version to keep for each field.
+                </p>
+                ${cards}
+                <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
+                    margin-top: 8px; padding: 10px 20px; border-radius: 8px;
+                    border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+                    background: #94a3b8; color: #fff; transition: background 0.15s;"
+                    title="Resolve all conflicts above to continue">
+                    Apply &amp; Merge
+                </button>
+            </div>`;
+        }
+
+        function selectConflictOption(fieldId, choice) {
+            // Update resolution record
+            _conflictResolutions[fieldId] = choice;
+
+            // Visual feedback — highlight selected button, de-highlight the other
+            const keepBtn = document.getElementById('conflict-keep-' + fieldId);
+            const useBtn  = document.getElementById('conflict-use-'  + fieldId);
+            if (keepBtn && useBtn) {
+                const selectedStyle = 'border: 2px solid #3b82f6; background: #eff6ff;';
+                const defaultStyle  = 'border: 2px solid #e2e8f0; background: #f8fafc;';
+                keepBtn.style.cssText = keepBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
+                useBtn.style.cssText  = useBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
+                if (choice === 'keep') {
+                    keepBtn.style.border = '2px solid #3b82f6';
+                    keepBtn.style.background = '#eff6ff';
+                    useBtn.style.border = '2px solid #e2e8f0';
+                    useBtn.style.background = '#f8fafc';
+                } else {
+                    useBtn.style.border = '2px solid #3b82f6';
+                    useBtn.style.background = '#eff6ff';
+                    keepBtn.style.border = '2px solid #e2e8f0';
+                    keepBtn.style.background = '#f8fafc';
+                }
+            }
+
+            // Enable Apply button once all conflicts are resolved
+            const allResolved = _pendingConflicts.every(c => _conflictResolutions[c.id]);
+            const applyBtn = document.getElementById('conflict-apply-btn');
+            if (applyBtn) {
+                applyBtn.disabled = !allResolved;
+                applyBtn.style.background = allResolved ? '#3b82f6' : '#94a3b8';
+                applyBtn.style.cursor = allResolved ? 'pointer' : 'default';
+            }
+        }
+
+        async function applyConflictResolutions() {
+            if (!_pendingIncomingProfile) return;
+
+            const applyBtn = document.getElementById('conflict-apply-btn');
+            if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
+
+            try {
+                // Start with auto-merged profile (handles arrays, empty fields, etc.)
+                const merged = mergeProfiles(profileData, _pendingIncomingProfile);
+
+                // Override each conflict field with the user's chosen value
+                for (const conflict of _pendingConflicts) {
+                    const choice = _conflictResolutions[conflict.id];
+                    merged[conflict.id] = choice === 'use' ? conflict.incoming : conflict.current;
+                }
+
+                profileData = merged;
+                await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
+                await saveProfileToCloud(profileData);
+
+                // Clear pending state
+                _pendingIncomingProfile = null;
+                _pendingConflicts = [];
+                _conflictResolutions = {};
+
+                const statusDiv = document.getElementById('review-upload-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
+                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                }
+                displayProfileForReview();
+
+            } catch (error) {
+                console.error('Conflict resolution apply error:', error);
+                const applyBtn2 = document.getElementById('conflict-apply-btn');
+                if (applyBtn2) { applyBtn2.disabled = false; applyBtn2.textContent = 'Apply & Merge'; }
+                showToast('Failed to save — please try again.', 'error');
+            }
         }
 
         function mergeProfiles(profile1, profile2) {
@@ -8275,13 +8419,16 @@ Return your analysis in this JSON format:
                 ${(() => {
                     const preGap = _preGapScore;
                     _preGapScore = null;
-                    if (preGap !== null && score < 70) {
-                        const direction = score > preGap ? 'raised' : score < preGap ? 'changed' : 'did not change';
-                        return `<div style="margin-top:20px;padding:14px 18px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;font-size:14px;color:#92400e;line-height:1.5;">
-                            Your background context was saved and your match score ${direction} from <strong>${Math.round(preGap)}%</strong> to <strong>${score}%</strong>. Generate Resume unlocks at 70% — keep editing your profile to close the remaining gaps.
+                    if (preGap === null) return '';
+                    if (score >= 70) {
+                        return `<div style="margin-top:20px;padding:14px 18px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:14px;color:#166534;line-height:1.5;">
+                            ✅ Your background context was saved and your match score moved from <strong>${Math.round(preGap)}%</strong> to <strong>${score}%</strong>. Generate Resume is now unlocked.
                         </div>`;
                     }
-                    return '';
+                    const raised = score > preGap;
+                    return `<div style="margin-top:20px;padding:14px 18px;background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;font-size:14px;color:#92400e;line-height:1.5;">
+                        Your background context was saved${raised ? ` and your match score moved from <strong>${Math.round(preGap)}%</strong> to <strong>${score}%</strong>` : ''}. Generate Resume unlocks at 70% — keep editing your profile to close the remaining gaps.
+                    </div>`;
                 })()}
                 <div class="button-group" style="margin-top: 32px;">
                     ${currentAnalysis.gaps && currentAnalysis.gaps.length > 0 ? `
@@ -9387,8 +9534,9 @@ Return ONLY valid JSON:
         }
 
         function selectCoverLetterTone(tone) {
+            const callback = _toneModalCallback;
             closeToneModal();
-            if (_toneModalCallback) _toneModalCallback(tone);
+            if (callback) callback(tone);
         }
 
         async function generateCoverLetter(tone = null) {
