@@ -5885,6 +5885,27 @@ async function getUserSubscription() {
         /**
          * Save user profile to cloud (Supabase)
          */
+        async function deleteProfileFromCloud() {
+            const supabase = getSupabase();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return false;
+            try {
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .delete()
+                    .eq('user_id', user.id);
+                if (error) {
+                    console.error('Error deleting profile from cloud:', error);
+                    return false;
+                }
+                debugLog('✅ Profile deleted from cloud');
+                return true;
+            } catch (error) {
+                console.error('Error deleting profile from cloud:', error);
+                return false;
+            }
+        }
+
         async function saveProfileToCloud(profileData) {
             const supabase = getSupabase();
             const { data: { user } } = await supabase.auth.getUser();
@@ -8034,7 +8055,12 @@ Return ONLY the JSON.`;
                     try {
                         await safeStorageDelete('job-assistant-profile');
                     } catch (error) {
-                        console.error('Error deleting profile:', error);
+                        console.error('Error deleting profile from storage:', error);
+                    }
+                    try {
+                        await deleteProfileFromCloud();
+                    } catch (error) {
+                        console.error('Error deleting profile from cloud:', error);
                     }
                     updateSetupNavVisibility();
                     showSection('setup-section');
