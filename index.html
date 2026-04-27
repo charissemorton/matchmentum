@@ -6778,10 +6778,11 @@ Return ONLY the JSON.`;
                 { id: 'email',    label: 'Email' },
                 { id: 'phone',    label: 'Phone' },
                 { id: 'location', label: 'Location' },
-                { id: 'linkedin', label: 'LinkedIn' },
-                { id: 'summary',  label: 'Professional Summary' }
+                { id: 'linkedin', label: 'LinkedIn' }
             ];
             const conflicts = [];
+
+            // Check scalar contact fields
             for (const { id, label } of CONFLICT_FIELDS) {
                 const cur = ((existing || {})[id] || '').toString().trim();
                 const inc = ((incoming || {})[id] || '').toString().trim();
@@ -6789,6 +6790,21 @@ Return ONLY the JSON.`;
                     conflicts.push({ id, label, current: cur, incoming: inc });
                 }
             }
+
+            // Check content fields — normalise experience (may be array or string)
+            const contentFields = [
+                { id: 'experience', label: 'Work Experience', getValue: (p) => experienceToText((p || {}).experience) },
+                { id: 'skills',     label: 'Skills',          getValue: (p) => ((p || {}).skills || '').toString() },
+                { id: 'education',  label: 'Education',       getValue: (p) => ((p || {}).education || '').toString() }
+            ];
+            for (const { id, label, getValue } of contentFields) {
+                const cur = getValue(existing).trim();
+                const inc = getValue(incoming).trim();
+                if (cur && inc && cur !== inc) {
+                    conflicts.push({ id, label, current: cur, incoming: inc });
+                }
+            }
+
             return conflicts;
         }
 
@@ -8052,6 +8068,9 @@ Return ONLY the JSON.`;
                 'This will permanently delete your profile. You\'ll need to upload or re-enter your information to continue.',
                 async () => {
                     profileData = null;
+                    // Clear stale DOM from the review section immediately
+                    const reviewDiv = document.getElementById('profile-review');
+                    if (reviewDiv) reviewDiv.innerHTML = '';
                     try {
                         await safeStorageDelete('job-assistant-profile');
                     } catch (error) {
@@ -8066,6 +8085,7 @@ Return ONLY the JSON.`;
                     showSection('setup-section');
                     hideManualEntry();
                     hideDocumentUpload();
+                    showToast('Profile deleted', 'success');
                 },
                 { confirmLabel: 'Delete Profile', cancelLabel: 'Cancel', danger: true }
             );
