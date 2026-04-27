@@ -6748,6 +6748,12 @@ Return ONLY the JSON.`;
                 const tempProfile = await parseResumeText(text);
                 const conflicts = detectUploadConflicts(profileData, tempProfile);
 
+                // DEBUG — remove before ship
+                console.log('[upload] profileData at conflict check:', profileData);
+                console.log('[upload] tempProfile from parse:', tempProfile);
+                console.log('[upload] conflicts detected:', conflicts);
+                showToast(`[debug] ${conflicts.length} conflict(s) detected. Profile null? ${profileData === null}`, conflicts.length > 0 ? 'success' : 'error');
+
                 if (conflicts.length === 0) {
                     // No conflicts — auto-merge and save immediately
                     profileData = mergeProfiles(profileData, tempProfile);
