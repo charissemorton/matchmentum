@@ -6688,14 +6688,34 @@ async function getUserSubscription() {
                     await parseExtractedText(firstText);
                 }
 
-                // For additional files, always parse and merge
+                // For additional files, check conflicts against profile built so far
                 for (let i = 1; i < files.length; i++) {
                     statusDiv.innerHTML = `<p style="color: #2563eb; font-weight: 600;">Processing document ${i + 1} of ${files.length}...</p>`;
 
                     const text = await extractTextFromFile(files[i]);
                     const tempProfile = await parseResumeText(text);
 
-                    // Merge into existing profileData
+                    const additionalConflicts = detectUploadConflicts(profileData, tempProfile);
+                    if (additionalConflicts.length > 0) {
+                        _pendingIncomingProfile = tempProfile;
+                        _pendingConflicts = additionalConflicts;
+                        _conflictResolutions = {};
+                        statusDiv.innerHTML = '';
+                        statusDiv.classList.add('hidden');
+                        setTimeout(() => {
+                            showSection('review-section');
+                            setTimeout(() => {
+                                const reviewStatus = document.getElementById('review-upload-status');
+                                if (reviewStatus) {
+                                    reviewStatus.classList.remove('hidden');
+                                    reviewStatus.innerHTML = renderConflictCards(additionalConflicts);
+                                }
+                            }, 350);
+                        }, 100);
+                        return; // Stop — user must resolve before remaining files can be added
+                    }
+
+                    // No conflicts — merge and continue
                     profileData = mergeProfiles(profileData, tempProfile);
                 }
 
