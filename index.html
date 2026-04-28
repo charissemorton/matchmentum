@@ -6838,118 +6838,172 @@ Return ONLY the JSON.`;
             event.target.value = '';
         }
 
+        // ── Conflict detection helpers ────────────────────────────────────────────
+        function _splitDoubleNewline(text) {
+            if (!text || !text.trim()) return [];
+            return text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+        }
+        function _splitListItems(text) {
+            // Prefer comma-split when there are multiple commas; else newline-split
+            if (!text || !text.trim()) return [];
+            const byComma = text.split(',').map(s => s.trim()).filter(Boolean);
+            if (byComma.length > 1) return byComma;
+            return text.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+        function _itemKey(item) {
+            // First 60 chars of first line, lower-cased — used to match the same role/degree across versions
+            return item.split('\n')[0].trim().toLowerCase().slice(0, 60);
+        }
+        function _normText(text) {
+            return text.replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
         function detectUploadConflicts(existing, incoming) {
-            const CONFLICT_FIELDS = [
+            const conflicts = [];
+            const ex = existing || {};
+            const inc = incoming || {};
+
+            // 1. Contact fields — field level
+            const CONTACT = [
                 { id: 'name',     label: 'Full Name' },
                 { id: 'email',    label: 'Email' },
                 { id: 'phone',    label: 'Phone' },
                 { id: 'location', label: 'Location' },
                 { id: 'linkedin', label: 'LinkedIn' }
             ];
-            const conflicts = [];
-
-            // Check scalar contact fields
-            for (const { id, label } of CONFLICT_FIELDS) {
-                const cur = ((existing || {})[id] || '').toString().trim();
-                const inc = ((incoming || {})[id] || '').toString().trim();
-                debugLog(`Conflict check [${id}]: existing="${cur}" incoming="${inc}" match=${cur === inc}`);
-                if (cur && inc && cur !== inc) {
-                    conflicts.push({ id, label, current: cur, incoming: inc });
+            for (const { id, label } of CONTACT) {
+                const cur = (ex[id] || '').toString().trim();
+                const nw  = (inc[id] || '').toString().trim();
+                if (cur && nw && cur !== nw) {
+                    conflicts.push({ id, label, section: id, type: 'conflict', current: cur, incoming: nw });
                 }
             }
 
-            // Check content fields — normalise experience (may be array or string)
-            const contentFields = [
-                { id: 'experience', label: 'Work Experience', getValue: (p) => experienceToText((p || {}).experience) },
-                { id: 'skills',     label: 'Skills',          getValue: (p) => ((p || {}).skills || '').toString() },
-                { id: 'education',  label: 'Education',       getValue: (p) => ((p || {}).education || '').toString() }
-            ];
-            for (const { id, label, getValue } of contentFields) {
-                const cur = getValue(existing).trim();
-                const inc = getValue(incoming).trim();
-                debugLog(`Conflict check [${id}]: existing=${cur.length}chars incoming=${inc.length}chars match=${cur === inc}`);
-                if (cur && inc && cur !== inc) {
-                    conflicts.push({ id, label, current: cur, incoming: inc });
+            // 2. Experience — one card per role
+            const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
+            const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
+            incRoles.forEach((role, i) => {
+                const key   = _itemKey(role);
+                const match = exRoles.find(r => _itemKey(r) === key);
+                if (!match) {
+                    conflicts.push({ id: `exp_add_${i}`, label: 'Work Experience', section: 'experience', type: 'addition', incoming: role });
+                } else if (_normText(match) !== _normText(role)) {
+                    conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
-            }
+            });
 
-            debugLog(`detectUploadConflicts result: ${conflicts.length} conflict(s)`, conflicts.map(c => c.id));
+            // 3. Skills — one card per skill
+            const exSkills  = _splitListItems((ex.skills  || '').toString());
+            const incSkills = _splitListItems((inc.skills || '').toString());
+            incSkills.forEach((skill, i) => {
+                if (!exSkills.some(s => s.toLowerCase() === skill.toLowerCase())) {
+                    conflicts.push({ id: `skill_add_${i}`, label: 'Skill', section: 'skills', type: 'addition', incoming: skill });
+                }
+            });
+
+            // 4. Education — one card per entry
+            const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
+            const incEdu = _splitDoubleNewline((inc.education || '').toString());
+            incEdu.forEach((entry, i) => {
+                const key   = _itemKey(entry);
+                const match = exEdu.find(e => _itemKey(e) === key);
+                if (!match) {
+                    conflicts.push({ id: `edu_add_${i}`, label: 'Education', section: 'education', type: 'addition', incoming: entry });
+                } else if (_normText(match) !== _normText(entry)) {
+                    conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
+                }
+            });
+
+            // 5. Certifications — one card per cert
+            const exCerts  = _splitListItems((ex.certifications  || '').toString());
+            const incCerts = _splitListItems((inc.certifications || '').toString());
+            incCerts.forEach((cert, i) => {
+                if (!exCerts.some(c => c.toLowerCase() === cert.toLowerCase())) {
+                    conflicts.push({ id: `cert_add_${i}`, label: 'Certification', section: 'certifications', type: 'addition', incoming: cert });
+                }
+            });
+
+            debugLog(`detectUploadConflicts: ${conflicts.length} item(s)`, conflicts.map(c => c.id));
             return conflicts;
         }
 
         function renderConflictCards(conflicts) {
+            const CARD_BASE = `border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;`;
+            const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s;`;
+
             const cards = conflicts.map(c => {
-                return `
-                <div id="conflict-card-${c.id}" class="conflict-card" style="
-                    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;">
-                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="
-                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
-                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
-                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.current)}</span>
-                        </button>
-                        <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="
-                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
-                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
-                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
-                        </button>
-                    </div>
-                </div>`;
+                if (c.type === 'addition') {
+                    return `
+                    <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
+                        <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 3px;">${escapeHtml(c.label)}</p>
+                        <p style="font-size: 0.78rem; color: #64748b; margin: 0 0 10px;">Found in uploaded resume — not in your current profile</p>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="conflict-add-${c.id}"  onclick="selectConflictOption('${c.id}','add')"  style="${BTN_BASE} flex: 1; font-size: 0.82rem; font-weight: 600; color: #64748b;">+ Add to Profile</button>
+                            <button id="conflict-skip-${c.id}" onclick="selectConflictOption('${c.id}','skip')" style="${BTN_BASE} flex: 1; font-size: 0.82rem; font-weight: 600; color: #64748b;">Skip</button>
+                        </div>
+                    </div>`;
+                } else {
+                    return `
+                    <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
+                        <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="${BTN_BASE}">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
+                                <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.current)}</span>
+                            </button>
+                            <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="${BTN_BASE}">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
+                                <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
+                            </button>
+                        </div>
+                    </div>`;
+                }
             }).join('');
 
             return `
             <div style="margin-bottom: 16px;">
                 <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
                 <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
-                    The uploaded resume differs from your saved profile in the fields below.
-                    Choose which version to keep for each field.
+                    The uploaded resume has items that differ from your saved profile.
+                    Review each one and choose what to keep.
                 </p>
                 ${cards}
                 <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
                     margin-top: 8px; padding: 10px 20px; border-radius: 8px;
                     border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer;
                     background: #94a3b8; color: #fff; transition: background 0.15s;"
-                    title="Resolve all conflicts above to continue">
+                    title="Resolve all items above to continue">
                     Apply &amp; Merge
                 </button>
             </div>`;
         }
 
         function selectConflictOption(fieldId, choice) {
-            // Update resolution record
             _conflictResolutions[fieldId] = choice;
 
-            // Visual feedback — highlight selected button, de-highlight the other
-            const keepBtn = document.getElementById('conflict-keep-' + fieldId);
-            const useBtn  = document.getElementById('conflict-use-'  + fieldId);
-            if (keepBtn && useBtn) {
-                const selectedStyle = 'border: 2px solid #3b82f6; background: #eff6ff;';
-                const defaultStyle  = 'border: 2px solid #e2e8f0; background: #f8fafc;';
-                keepBtn.style.cssText = keepBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
-                useBtn.style.cssText  = useBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
-                if (choice === 'keep') {
-                    keepBtn.style.border = '2px solid #3b82f6';
-                    keepBtn.style.background = '#eff6ff';
-                    useBtn.style.border = '2px solid #e2e8f0';
-                    useBtn.style.background = '#f8fafc';
-                } else {
-                    useBtn.style.border = '2px solid #3b82f6';
-                    useBtn.style.background = '#eff6ff';
-                    keepBtn.style.border = '2px solid #e2e8f0';
-                    keepBtn.style.background = '#f8fafc';
-                }
-            }
+            // Highlight selected, reset the other button in the pair
+            const btnIds = {
+                keep: document.getElementById('conflict-keep-' + fieldId),
+                use:  document.getElementById('conflict-use-'  + fieldId),
+                add:  document.getElementById('conflict-add-'  + fieldId),
+                skip: document.getElementById('conflict-skip-' + fieldId)
+            };
+            Object.entries(btnIds).forEach(([name, btn]) => {
+                if (!btn) return;
+                const selected = name === choice;
+                btn.style.border     = selected ? '2px solid #3b82f6' : '2px solid #e2e8f0';
+                btn.style.background = selected ? '#eff6ff' : '#f8fafc';
+                btn.style.color      = selected ? '#1d4ed8' : '#64748b';
+            });
 
-            // Enable Apply button once all conflicts are resolved
+            // Enable Apply once every item is resolved
             const allResolved = _pendingConflicts.every(c => _conflictResolutions[c.id]);
             const applyBtn = document.getElementById('conflict-apply-btn');
             if (applyBtn) {
-                applyBtn.disabled = !allResolved;
+                applyBtn.disabled        = !allResolved;
                 applyBtn.style.background = allResolved ? '#3b82f6' : '#94a3b8';
-                applyBtn.style.cursor = allResolved ? 'pointer' : 'default';
+                applyBtn.style.cursor     = allResolved ? 'pointer' : 'default';
             }
         }
 
@@ -6960,23 +7014,58 @@ Return ONLY the JSON.`;
             if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
 
             try {
-                // Start with auto-merged profile (handles arrays, empty fields, etc.)
-                const merged = mergeProfiles(profileData, _pendingIncomingProfile);
+                // Start from the current profile — apply each resolution individually
+                const updated = { ...profileData };
 
-                // Override each conflict field with the user's chosen value
                 for (const conflict of _pendingConflicts) {
-                    const choice = _conflictResolutions[conflict.id];
-                    merged[conflict.id] = choice === 'use' ? conflict.incoming : conflict.current;
+                    const choice  = _conflictResolutions[conflict.id];
+                    const section = conflict.section;
+
+                    if (conflict.type === 'conflict') {
+                        if (choice === 'use') {
+                            if (['name','email','phone','location','linkedin'].includes(section)) {
+                                updated[section] = conflict.incoming;
+                            } else if (section === 'experience') {
+                                const roles = _splitDoubleNewline(experienceToText(updated.experience));
+                                const idx   = roles.findIndex(r => _itemKey(r) === _itemKey(conflict.current));
+                                if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
+                                updated.experience = roles.join('\n\n');
+                            } else if (section === 'education') {
+                                const entries = _splitDoubleNewline(updated.education || '');
+                                const idx     = entries.findIndex(e => _itemKey(e) === _itemKey(conflict.current));
+                                if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
+                                updated.education = entries.join('\n\n');
+                            }
+                        }
+                        // choice === 'keep': no change needed
+                    } else if (conflict.type === 'addition' && choice === 'add') {
+                        if (section === 'experience') {
+                            const base = experienceToText(updated.experience || '');
+                            updated.experience = base ? base + '\n\n' + conflict.incoming : conflict.incoming;
+                        } else if (section === 'skills') {
+                            updated.skills = updated.skills
+                                ? updated.skills + ', ' + conflict.incoming
+                                : conflict.incoming;
+                        } else if (section === 'education') {
+                            updated.education = updated.education
+                                ? updated.education + '\n\n' + conflict.incoming
+                                : conflict.incoming;
+                        } else if (section === 'certifications') {
+                            updated.certifications = updated.certifications
+                                ? updated.certifications + ', ' + conflict.incoming
+                                : conflict.incoming;
+                        }
+                        // choice === 'skip': no change
+                    }
                 }
 
-                profileData = merged;
+                profileData = updated;
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
 
-                // Clear pending state
                 _pendingIncomingProfile = null;
-                _pendingConflicts = [];
-                _conflictResolutions = {};
+                _pendingConflicts       = [];
+                _conflictResolutions    = {};
 
                 const statusDiv = document.getElementById('review-upload-status');
                 if (statusDiv) {
