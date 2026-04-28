@@ -6675,6 +6675,7 @@ async function getUserSubscription() {
                                 if (reviewStatus) {
                                     reviewStatus.classList.remove('hidden');
                                     reviewStatus.innerHTML = renderConflictCards(conflicts);
+                                    reviewStatus.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                 }
                             }, 350);
                         }, 100);
@@ -6709,6 +6710,7 @@ async function getUserSubscription() {
                                 if (reviewStatus) {
                                     reviewStatus.classList.remove('hidden');
                                     reviewStatus.innerHTML = renderConflictCards(additionalConflicts);
+                                    reviewStatus.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                 }
                             }, 350);
                         }, 100);
@@ -6825,6 +6827,7 @@ Return ONLY the JSON.`;
                     _pendingConflicts = conflicts;
                     _conflictResolutions = {};
                     statusDiv.innerHTML = renderConflictCards(conflicts);
+                    setTimeout(() => statusDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                 }
 
             } catch (error) {
@@ -6849,6 +6852,7 @@ Return ONLY the JSON.`;
             for (const { id, label } of CONFLICT_FIELDS) {
                 const cur = ((existing || {})[id] || '').toString().trim();
                 const inc = ((incoming || {})[id] || '').toString().trim();
+                debugLog(`Conflict check [${id}]: existing="${cur}" incoming="${inc}" match=${cur === inc}`);
                 if (cur && inc && cur !== inc) {
                     conflicts.push({ id, label, current: cur, incoming: inc });
                 }
@@ -6863,33 +6867,34 @@ Return ONLY the JSON.`;
             for (const { id, label, getValue } of contentFields) {
                 const cur = getValue(existing).trim();
                 const inc = getValue(incoming).trim();
+                debugLog(`Conflict check [${id}]: existing=${cur.length}chars incoming=${inc.length}chars match=${cur === inc}`);
                 if (cur && inc && cur !== inc) {
                     conflicts.push({ id, label, current: cur, incoming: inc });
                 }
             }
 
+            debugLog(`detectUploadConflicts result: ${conflicts.length} conflict(s)`, conflicts.map(c => c.id));
             return conflicts;
         }
 
         function renderConflictCards(conflicts) {
             const cards = conflicts.map(c => {
-                const preview = (val) => val.length > 120 ? val.slice(0, 117) + '…' : val;
                 return `
                 <div id="conflict-card-${c.id}" class="conflict-card" style="
                     border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;">
-                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${c.label}</p>
+                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="
                             border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
                             background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
                             <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.current)}</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.current)}</span>
                         </button>
                         <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="
                             border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
                             background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
                             <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.incoming)}</span>
+                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
                         </button>
                     </div>
                 </div>`;
