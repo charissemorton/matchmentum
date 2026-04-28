@@ -6637,31 +6637,54 @@ async function getUserSubscription() {
                 const firstText = await extractTextFromFile(files[0]);
                 
                 if (hasExistingProfile) {
-                    // Merge into existing profile instead of overwriting
+                    // Parse first file then check for conflicts before merging
                     const tempProfile = await parseResumeText(firstText);
+                    const conflicts = detectUploadConflicts(profileData, tempProfile);
+
+                    if (conflicts.length > 0) {
+                        // Stash pending state and hand off to review section conflict UI
+                        _pendingIncomingProfile = tempProfile;
+                        _pendingConflicts = conflicts;
+                        _conflictResolutions = {};
+                        statusDiv.innerHTML = '';
+                        statusDiv.classList.add('hidden');
+                        setTimeout(() => {
+                            showSection('review-section');
+                            setTimeout(() => {
+                                const reviewStatus = document.getElementById('review-upload-status');
+                                if (reviewStatus) {
+                                    reviewStatus.classList.remove('hidden');
+                                    reviewStatus.innerHTML = renderConflictCards(conflicts);
+                                }
+                            }, 350);
+                        }, 100);
+                        return;
+                    }
+
+                    // No conflicts — straight merge
                     profileData = mergeProfiles(profileData, tempProfile);
                 } else {
                     // No existing profile — create fresh
                     await parseExtractedText(firstText);
                 }
-                
+
                 // For additional files, always parse and merge
                 for (let i = 1; i < files.length; i++) {
                     statusDiv.innerHTML = `<p style="color: #2563eb; font-weight: 600;">Processing document ${i + 1} of ${files.length}...</p>`;
-                    
+
                     const text = await extractTextFromFile(files[i]);
                     const tempProfile = await parseResumeText(text);
-                    
+
                     // Merge into existing profileData
                     profileData = mergeProfiles(profileData, tempProfile);
                 }
-                
+
                 // Save merged result
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
-                
+
                 statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Documents processed successfully!</p>';
-                
+
                 // Auto-navigate to review after successful upload
                 setTimeout(() => {
                     displayProfileForReview();
@@ -6747,12 +6770,6 @@ Return ONLY the JSON.`;
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
                 const conflicts = detectUploadConflicts(profileData, tempProfile);
-
-                // DEBUG — remove before ship
-                console.log('[upload] profileData at conflict check:', profileData);
-                console.log('[upload] tempProfile from parse:', tempProfile);
-                console.log('[upload] conflicts detected:', conflicts);
-                showToast(`[debug] ${conflicts.length} conflict(s) detected. Profile null? ${profileData === null}`, conflicts.length > 0 ? 'success' : 'error');
 
                 if (conflicts.length === 0) {
                     // No conflicts — auto-merge and save immediately
