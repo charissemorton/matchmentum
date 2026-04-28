@@ -5358,25 +5358,45 @@ async function getUserSubscription() {
         async function saveConsent(userId, marketingOptIn, retryCount = 0) {
             try {
                 const supabase = getSupabase();
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .update({
-                        terms_accepted_at: new Date().toISOString(),
-                        marketing_opt_in: marketingOptIn
-                    })
-                    .eq('user_id', userId);
+                const consentFields = {
+                    terms_accepted_at: new Date().toISOString(),
+                    marketing_opt_in: marketingOptIn
+                };
 
-                if (error) {
-                    // Retry once — trigger may not have created the row yet
+                // Try to update existing row — chain .select() so we can detect 0 rows affected
+                const { data: updated, error: updateError } = await supabase
+                    .from('user_profiles')
+                    .update(consentFields)
+                    .eq('user_id', userId)
+                    .select('user_id');
+
+                if (updateError) {
                     if (retryCount === 0) {
                         await new Promise(resolve => setTimeout(resolve, 1500));
                         return saveConsent(userId, marketingOptIn, 1);
                     }
-                    console.error('Error saving consent:', error);
-                } else {
-                    debugLog('Consent saved for user:', userId);
-                    sessionStorage.removeItem('pendingConsent');
+                    console.error('Error saving consent (update):', updateError);
+                    return;
                 }
+
+                // No row existed yet — insert one so consent is persisted
+                if (!updated || updated.length === 0) {
+                    const { error: insertError } = await supabase
+                        .from('user_profiles')
+                        .insert({ user_id: userId, profile_data: {}, ...consentFields });
+
+                    if (insertError) {
+                        if (retryCount === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            return saveConsent(userId, marketingOptIn, 1);
+                        }
+                        console.error('Error saving consent (insert):', insertError);
+                        return;
+                    }
+                }
+
+                debugLog('Consent saved for user:', userId);
+                sessionStorage.removeItem('pendingConsent');
             } catch (err) {
                 console.error('Error saving consent:', err);
             }
