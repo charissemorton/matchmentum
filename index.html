@@ -5790,9 +5790,10 @@ async function getUserSubscription() {
         let currentJobDescription = null;
         let currentAnalysis = null;
         let _preGapScore = null; // score before a gap-context re-analysis, for messaging
-        let _pendingIncomingProfile = null; // incoming profile awaiting conflict resolution
-        let _pendingConflicts = [];          // array of {id, label, current, incoming}
-        let _conflictResolutions = {};       // {fieldId: 'keep'|'use'}
+        let _pendingIncomingProfile   = null; // incoming profile awaiting conflict resolution
+        let _pendingAutoMergedProfile = null; // base profile with new items already merged in
+        let _pendingConflicts = [];           // array of {id, label, section, type, current?, incoming}
+        let _conflictResolutions = {};        // {fieldId: 'keep'|'use'}
         let currentResumeText = null;
         let currentCoverLetterText = null;
         let currentViewedFileContent = null;
@@ -6659,11 +6660,13 @@ async function getUserSubscription() {
                 if (hasExistingProfile) {
                     // Parse first file then check for conflicts before merging
                     const tempProfile = await parseResumeText(firstText);
-                    const conflicts = detectUploadConflicts(profileData, tempProfile);
+                    const autoMerged  = autoMergeNewItems(profileData, tempProfile);
+                    const conflicts   = detectUploadConflicts(autoMerged, tempProfile);
 
                     if (conflicts.length > 0) {
                         // Stash pending state and hand off to review section conflict UI
-                        _pendingIncomingProfile = tempProfile;
+                        _pendingIncomingProfile   = tempProfile;
+                        _pendingAutoMergedProfile = autoMerged;
                         _pendingConflicts = conflicts;
                         _conflictResolutions = {};
                         statusDiv.innerHTML = '';
@@ -6682,8 +6685,8 @@ async function getUserSubscription() {
                         return;
                     }
 
-                    // No conflicts — straight merge
-                    profileData = mergeProfiles(profileData, tempProfile);
+                    // No conflicts — use auto-merged result (new items already folded in)
+                    profileData = autoMerged;
                 } else {
                     // No existing profile — create fresh
                     await parseExtractedText(firstText);
@@ -6696,9 +6699,11 @@ async function getUserSubscription() {
                     const text = await extractTextFromFile(files[i]);
                     const tempProfile = await parseResumeText(text);
 
-                    const additionalConflicts = detectUploadConflicts(profileData, tempProfile);
+                    const autoMergedN        = autoMergeNewItems(profileData, tempProfile);
+                    const additionalConflicts = detectUploadConflicts(autoMergedN, tempProfile);
                     if (additionalConflicts.length > 0) {
-                        _pendingIncomingProfile = tempProfile;
+                        _pendingIncomingProfile   = tempProfile;
+                        _pendingAutoMergedProfile = autoMergedN;
                         _pendingConflicts = additionalConflicts;
                         _conflictResolutions = {};
                         statusDiv.innerHTML = '';
@@ -6717,8 +6722,8 @@ async function getUserSubscription() {
                         return; // Stop — user must resolve before remaining files can be added
                     }
 
-                    // No conflicts — merge and continue
-                    profileData = mergeProfiles(profileData, tempProfile);
+                    // No conflicts — use auto-merged result and continue
+                    profileData = autoMergedN;
                 }
 
                 // Save merged result
@@ -6811,19 +6816,21 @@ Return ONLY the JSON.`;
             try {
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
-                const conflicts = detectUploadConflicts(profileData, tempProfile);
+                const autoMergedR = autoMergeNewItems(profileData, tempProfile);
+                const conflicts   = detectUploadConflicts(autoMergedR, tempProfile);
 
                 if (conflicts.length === 0) {
-                    // No conflicts — auto-merge and save immediately
-                    profileData = mergeProfiles(profileData, tempProfile);
+                    // No conflicts — use auto-merged result and save immediately
+                    profileData = autoMergedR;
                     await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                     await saveProfileToCloud(profileData);
                     statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
                     displayProfileForReview();
                     setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
                 } else {
-                    // Conflicts found — stash incoming profile and show resolution cards
-                    _pendingIncomingProfile = tempProfile;
+                    // True conflicts found — stash and show resolution cards
+                    _pendingIncomingProfile   = tempProfile;
+                    _pendingAutoMergedProfile = autoMergedR;
                     _pendingConflicts = conflicts;
                     _conflictResolutions = {};
                     statusDiv.innerHTML = renderConflictCards(conflicts);
@@ -6858,6 +6865,56 @@ Return ONLY the JSON.`;
             return text.replace(/\s+/g, ' ').trim().toLowerCase();
         }
 
+        // Silently merge items from incoming that don't exist in existing.
+        // Returns the merged profile without saving — no user input needed for pure additions.
+        function autoMergeNewItems(existing, incoming) {
+            const ex  = existing || {};
+            const inc = incoming || {};
+            const updated = { ...ex };
+
+            // Experience roles not in existing
+            const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
+            const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
+            const newRoles = incRoles.filter(r => !exRoles.some(e => _itemKey(e) === _itemKey(r)));
+            if (newRoles.length) {
+                const base = experienceToText(updated.experience || '');
+                updated.experience = base ? base + '\n\n' + newRoles.join('\n\n') : newRoles.join('\n\n');
+            }
+
+            // Skills not in existing
+            const exSkills  = _splitListItems((ex.skills  || '').toString());
+            const incSkills = _splitListItems((inc.skills || '').toString());
+            const newSkills = incSkills.filter(s => !exSkills.some(e => e.toLowerCase() === s.toLowerCase()));
+            if (newSkills.length) {
+                updated.skills = updated.skills
+                    ? updated.skills + ', ' + newSkills.join(', ')
+                    : newSkills.join(', ');
+            }
+
+            // Education entries not in existing
+            const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
+            const incEdu = _splitDoubleNewline((inc.education || '').toString());
+            const newEdu = incEdu.filter(e => !exEdu.some(x => _itemKey(x) === _itemKey(e)));
+            if (newEdu.length) {
+                updated.education = updated.education
+                    ? updated.education + '\n\n' + newEdu.join('\n\n')
+                    : newEdu.join('\n\n');
+            }
+
+            // Certifications not in existing
+            const exCerts  = _splitListItems((ex.certifications  || '').toString());
+            const incCerts = _splitListItems((inc.certifications || '').toString());
+            const newCerts = incCerts.filter(c => !exCerts.some(x => x.toLowerCase() === c.toLowerCase()));
+            if (newCerts.length) {
+                updated.certifications = updated.certifications
+                    ? updated.certifications + ', ' + newCerts.join(', ')
+                    : newCerts.join(', ');
+            }
+
+            debugLog(`autoMergeNewItems: added ${newRoles.length} role(s), ${newSkills.length} skill(s), ${newEdu.length} edu, ${newCerts.length} cert(s)`);
+            return updated;
+        }
+
         function detectUploadConflicts(existing, incoming) {
             const conflicts = [];
             const ex = existing || {};
@@ -6879,49 +6936,29 @@ Return ONLY the JSON.`;
                 }
             }
 
-            // 2. Experience — one card per role
+            // 2. Experience — one card per role where same role key exists but content differs
             const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
             const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
             incRoles.forEach((role, i) => {
-                const key   = _itemKey(role);
-                const match = exRoles.find(r => _itemKey(r) === key);
-                if (!match) {
-                    conflicts.push({ id: `exp_add_${i}`, label: 'Work Experience', section: 'experience', type: 'addition', incoming: role });
-                } else if (_normText(match) !== _normText(role)) {
+                const match = exRoles.find(r => _itemKey(r) === _itemKey(role));
+                if (match && _normText(match) !== _normText(role)) {
                     conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
             });
 
-            // 3. Skills — one card per skill
-            const exSkills  = _splitListItems((ex.skills  || '').toString());
-            const incSkills = _splitListItems((inc.skills || '').toString());
-            incSkills.forEach((skill, i) => {
-                if (!exSkills.some(s => s.toLowerCase() === skill.toLowerCase())) {
-                    conflicts.push({ id: `skill_add_${i}`, label: 'Skill', section: 'skills', type: 'addition', incoming: skill });
-                }
-            });
+            // 3. Skills — no card needed; new skills are auto-merged
 
-            // 4. Education — one card per entry
+            // 4. Education — one card per entry where same entry key exists but content differs
             const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
             const incEdu = _splitDoubleNewline((inc.education || '').toString());
             incEdu.forEach((entry, i) => {
-                const key   = _itemKey(entry);
-                const match = exEdu.find(e => _itemKey(e) === key);
-                if (!match) {
-                    conflicts.push({ id: `edu_add_${i}`, label: 'Education', section: 'education', type: 'addition', incoming: entry });
-                } else if (_normText(match) !== _normText(entry)) {
+                const match = exEdu.find(e => _itemKey(e) === _itemKey(entry));
+                if (match && _normText(match) !== _normText(entry)) {
                     conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
                 }
             });
 
-            // 5. Certifications — one card per cert
-            const exCerts  = _splitListItems((ex.certifications  || '').toString());
-            const incCerts = _splitListItems((inc.certifications || '').toString());
-            incCerts.forEach((cert, i) => {
-                if (!exCerts.some(c => c.toLowerCase() === cert.toLowerCase())) {
-                    conflicts.push({ id: `cert_add_${i}`, label: 'Certification', section: 'certifications', type: 'addition', incoming: cert });
-                }
-            });
+            // 5. Certifications — no card needed; new certs are auto-merged
 
             debugLog(`detectUploadConflicts: ${conflicts.length} item(s)`, conflicts.map(c => c.id));
             return conflicts;
@@ -6931,20 +6968,7 @@ Return ONLY the JSON.`;
             const CARD_BASE = `border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;`;
             const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s;`;
 
-            const cards = conflicts.map(c => {
-                if (c.type === 'addition') {
-                    return `
-                    <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
-                        <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 3px;">${escapeHtml(c.label)}</p>
-                        <p style="font-size: 0.78rem; color: #64748b; margin: 0 0 10px;">Found in uploaded resume — not in your current profile</p>
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</div>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="conflict-add-${c.id}"  onclick="selectConflictOption('${c.id}','add')"  style="${BTN_BASE} flex: 1; font-size: 0.82rem; font-weight: 600; color: #64748b;">+ Add to Profile</button>
-                            <button id="conflict-skip-${c.id}" onclick="selectConflictOption('${c.id}','skip')" style="${BTN_BASE} flex: 1; font-size: 0.82rem; font-weight: 600; color: #64748b;">Skip</button>
-                        </div>
-                    </div>`;
-                } else {
-                    return `
+            const cards = conflicts.map(c => `
                     <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
                         <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -6957,16 +6981,15 @@ Return ONLY the JSON.`;
                                 <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
                             </button>
                         </div>
-                    </div>`;
-                }
-            }).join('');
+                    </div>`
+            ).join('');
 
             return `
             <div style="margin-bottom: 16px;">
                 <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
                 <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
-                    The uploaded resume has items that differ from your saved profile.
-                    Review each one and choose what to keep.
+                    The uploaded resume has items that exist in your profile but with different content.
+                    New items have been added automatically. Choose which version to keep for each conflict below.
                 </p>
                 ${cards}
                 <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
@@ -6985,9 +7008,7 @@ Return ONLY the JSON.`;
             // Highlight selected, reset the other button in the pair
             const btnIds = {
                 keep: document.getElementById('conflict-keep-' + fieldId),
-                use:  document.getElementById('conflict-use-'  + fieldId),
-                add:  document.getElementById('conflict-add-'  + fieldId),
-                skip: document.getElementById('conflict-skip-' + fieldId)
+                use:  document.getElementById('conflict-use-'  + fieldId)
             };
             Object.entries(btnIds).forEach(([name, btn]) => {
                 if (!btn) return;
@@ -7014,58 +7035,40 @@ Return ONLY the JSON.`;
             if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
 
             try {
-                // Start from the current profile — apply each resolution individually
-                const updated = { ...profileData };
+                // Start from the auto-merged base (new items already folded in)
+                // then apply user choices for true conflicts only
+                const updated = { ...(_pendingAutoMergedProfile || profileData) };
 
                 for (const conflict of _pendingConflicts) {
                     const choice  = _conflictResolutions[conflict.id];
                     const section = conflict.section;
 
-                    if (conflict.type === 'conflict') {
-                        if (choice === 'use') {
-                            if (['name','email','phone','location','linkedin'].includes(section)) {
-                                updated[section] = conflict.incoming;
-                            } else if (section === 'experience') {
-                                const roles = _splitDoubleNewline(experienceToText(updated.experience));
-                                const idx   = roles.findIndex(r => _itemKey(r) === _itemKey(conflict.current));
-                                if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
-                                updated.experience = roles.join('\n\n');
-                            } else if (section === 'education') {
-                                const entries = _splitDoubleNewline(updated.education || '');
-                                const idx     = entries.findIndex(e => _itemKey(e) === _itemKey(conflict.current));
-                                if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
-                                updated.education = entries.join('\n\n');
-                            }
-                        }
-                        // choice === 'keep': no change needed
-                    } else if (conflict.type === 'addition' && choice === 'add') {
-                        if (section === 'experience') {
-                            const base = experienceToText(updated.experience || '');
-                            updated.experience = base ? base + '\n\n' + conflict.incoming : conflict.incoming;
-                        } else if (section === 'skills') {
-                            updated.skills = updated.skills
-                                ? updated.skills + ', ' + conflict.incoming
-                                : conflict.incoming;
+                    if (conflict.type === 'conflict' && choice === 'use') {
+                        if (['name','email','phone','location','linkedin'].includes(section)) {
+                            updated[section] = conflict.incoming;
+                        } else if (section === 'experience') {
+                            const roles = _splitDoubleNewline(experienceToText(updated.experience));
+                            const idx   = roles.findIndex(r => _itemKey(r) === _itemKey(conflict.current));
+                            if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
+                            updated.experience = roles.join('\n\n');
                         } else if (section === 'education') {
-                            updated.education = updated.education
-                                ? updated.education + '\n\n' + conflict.incoming
-                                : conflict.incoming;
-                        } else if (section === 'certifications') {
-                            updated.certifications = updated.certifications
-                                ? updated.certifications + ', ' + conflict.incoming
-                                : conflict.incoming;
+                            const entries = _splitDoubleNewline(updated.education || '');
+                            const idx     = entries.findIndex(e => _itemKey(e) === _itemKey(conflict.current));
+                            if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
+                            updated.education = entries.join('\n\n');
                         }
-                        // choice === 'skip': no change
                     }
+                    // choice === 'keep': no change needed
                 }
 
                 profileData = updated;
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
 
-                _pendingIncomingProfile = null;
-                _pendingConflicts       = [];
-                _conflictResolutions    = {};
+                _pendingIncomingProfile   = null;
+                _pendingAutoMergedProfile = null;
+                _pendingConflicts         = [];
+                _conflictResolutions      = {};
 
                 const statusDiv = document.getElementById('review-upload-status');
                 if (statusDiv) {
