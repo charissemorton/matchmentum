@@ -7179,13 +7179,23 @@ Return ONLY the JSON.`;
                         if (section === 'experience') {
                             const roles = _splitExperience(experienceToText(updated.experience));
                             const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
-                            const combined = conflict.current + '\n\n' + conflict.incoming;
+                            // Strip duplicate role header from incoming — header already present in conflict.current.
+                            // Using \n (not \n\n) so _splitExperience won't re-split the combined entry on future calls.
+                            const incLines = conflict.incoming.split('\n');
+                            const incBody  = (incLines.length > 1 && /\|/.test(incLines[0]))
+                                ? incLines.slice(1).join('\n').trim()
+                                : conflict.incoming;
+                            const combined = conflict.current + '\n' + incBody;
                             if (idx >= 0) roles[idx] = combined; else roles.push(combined);
                             updated.experience = roles.join('\n\n');
                         } else if (section === 'education') {
                             const entries = _splitEducation(updated.education || '');
                             const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
-                            const combined = conflict.current + '\n\n' + conflict.incoming;
+                            const incLines = conflict.incoming.split('\n');
+                            const incBody  = (incLines.length > 1 && /\|/.test(incLines[0]))
+                                ? incLines.slice(1).join('\n').trim()
+                                : conflict.incoming;
+                            const combined = conflict.current + '\n' + incBody;
                             if (idx >= 0) entries[idx] = combined; else entries.push(combined);
                             updated.education = entries.join('\n\n');
                         }
