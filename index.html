@@ -6950,11 +6950,14 @@ Return ONLY the JSON.`;
             }
 
             // 2. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
+            // Track matched existing items so each existing entry only maps to one incoming entry
             const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
             const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
+            const usedExRoles = new Set();
             incRoles.forEach((role, i) => {
-                const match = exRoles.find(r => _fuzzyMatch(_entryHeader(r), _entryHeader(role), 0.6));
+                const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_entryHeader(r), _entryHeader(role), 0.6));
                 if (match && _normText(match) !== _normText(role)) {
+                    usedExRoles.add(match);
                     conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
             });
@@ -6962,9 +6965,11 @@ Return ONLY the JSON.`;
             // 3. Skills — fuzzy match on full string; conflict card if text differs
             const exSkills  = _splitListItems((ex.skills  || '').toString());
             const incSkills = _splitListItems((inc.skills || '').toString());
+            const usedExSkills = new Set();
             incSkills.forEach((skill, i) => {
-                const match = exSkills.find(s => _fuzzyMatch(s, skill, 0.7));
+                const match = exSkills.find(s => !usedExSkills.has(s) && _fuzzyMatch(s, skill, 0.7));
                 if (match && _normText(match) !== _normText(skill)) {
+                    usedExSkills.add(match);
                     conflicts.push({ id: `skill_chg_${i}`, label: 'Skill', section: 'skills', type: 'conflict', current: match, incoming: skill });
                 }
             });
@@ -6972,9 +6977,11 @@ Return ONLY the JSON.`;
             // 4. Education — fuzzy match on first 2-3 lines; conflict card if full text differs
             const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
             const incEdu = _splitDoubleNewline((inc.education || '').toString());
+            const usedExEdu = new Set();
             incEdu.forEach((entry, i) => {
-                const match = exEdu.find(e => _fuzzyMatch(_entryHeader(e), _entryHeader(entry), 0.6));
+                const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_entryHeader(e), _entryHeader(entry), 0.6));
                 if (match && _normText(match) !== _normText(entry)) {
+                    usedExEdu.add(match);
                     conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
                 }
             });
@@ -6982,9 +6989,11 @@ Return ONLY the JSON.`;
             // 5. Certifications — fuzzy match on full string; conflict card if text differs
             const exCerts  = _splitListItems((ex.certifications  || '').toString());
             const incCerts = _splitListItems((inc.certifications || '').toString());
+            const usedExCerts = new Set();
             incCerts.forEach((cert, i) => {
-                const match = exCerts.find(c => _fuzzyMatch(c, cert, 0.7));
+                const match = exCerts.find(c => !usedExCerts.has(c) && _fuzzyMatch(c, cert, 0.7));
                 if (match && _normText(match) !== _normText(cert)) {
+                    usedExCerts.add(match);
                     conflicts.push({ id: `cert_chg_${i}`, label: 'Certification', section: 'certifications', type: 'conflict', current: match, incoming: cert });
                 }
             });
@@ -7017,9 +7026,11 @@ Return ONLY the JSON.`;
             return `
             <div style="margin-bottom: 16px;">
                 <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
-                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
-                    The uploaded resume has items that exist in your profile but with different content.
-                    New items have been added automatically. Choose which version to keep for each conflict below.
+                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 4px;">
+                    Your uploaded resume contains items that differ from your saved profile. New items were added automatically.
+                </p>
+                <p style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin: 0 0 14px;">
+                    Select <strong>Keep Current</strong> or <strong>Use New</strong> for each card below. Apply &amp; Merge activates once every conflict is resolved.
                 </p>
                 ${cards}
                 <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
