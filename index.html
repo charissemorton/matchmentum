@@ -7222,12 +7222,18 @@ Return ONLY the JSON.`;
                 _pendingConflicts         = [];
                 _conflictResolutions      = {};
 
+                // Clear conflict cards immediately and update profile fields
                 const statusDiv = document.getElementById('review-upload-status');
                 if (statusDiv) {
-                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
-                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                    statusDiv.classList.add('hidden');
+                    statusDiv.innerHTML = '';
                 }
                 displayProfileForReview();
+                // Scroll to profile fields so user sees the merged result
+                const profileReview = document.getElementById('profile-review');
+                if (profileReview) {
+                    setTimeout(() => profileReview.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                }
 
             } catch (error) {
                 console.error('Conflict resolution apply error:', error);
@@ -8307,6 +8313,14 @@ Return ONLY the JSON.`;
         }
 
         async function confirmProfile() {
+            // Block if the user has unresolved conflict cards
+            if (_pendingConflicts && _pendingConflicts.length > 0) {
+                toastWarning('Please resolve all conflicts above before continuing.');
+                const statusDiv = document.getElementById('review-upload-status');
+                if (statusDiv) statusDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+
             // Get values from review fields
             const name = document.getElementById('review-name').value;
             const email = document.getElementById('review-email').value;
