@@ -5358,25 +5358,45 @@ async function getUserSubscription() {
         async function saveConsent(userId, marketingOptIn, retryCount = 0) {
             try {
                 const supabase = getSupabase();
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .update({
-                        terms_accepted_at: new Date().toISOString(),
-                        marketing_opt_in: marketingOptIn
-                    })
-                    .eq('user_id', userId);
+                const consentFields = {
+                    terms_accepted_at: new Date().toISOString(),
+                    marketing_opt_in: marketingOptIn
+                };
 
-                if (error) {
-                    // Retry once — trigger may not have created the row yet
+                // Try to update existing row — chain .select() so we can detect 0 rows affected
+                const { data: updated, error: updateError } = await supabase
+                    .from('user_profiles')
+                    .update(consentFields)
+                    .eq('user_id', userId)
+                    .select('user_id');
+
+                if (updateError) {
                     if (retryCount === 0) {
                         await new Promise(resolve => setTimeout(resolve, 1500));
                         return saveConsent(userId, marketingOptIn, 1);
                     }
-                    console.error('Error saving consent:', error);
-                } else {
-                    debugLog('Consent saved for user:', userId);
-                    sessionStorage.removeItem('pendingConsent');
+                    console.error('Error saving consent (update):', updateError);
+                    return;
                 }
+
+                // No row existed yet — insert one so consent is persisted
+                if (!updated || updated.length === 0) {
+                    const { error: insertError } = await supabase
+                        .from('user_profiles')
+                        .insert({ user_id: userId, profile_data: {}, ...consentFields });
+
+                    if (insertError) {
+                        if (retryCount === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            return saveConsent(userId, marketingOptIn, 1);
+                        }
+                        console.error('Error saving consent (insert):', insertError);
+                        return;
+                    }
+                }
+
+                debugLog('Consent saved for user:', userId);
+                sessionStorage.removeItem('pendingConsent');
             } catch (err) {
                 console.error('Error saving consent:', err);
             }
@@ -5770,9 +5790,10 @@ async function getUserSubscription() {
         let currentJobDescription = null;
         let currentAnalysis = null;
         let _preGapScore = null; // score before a gap-context re-analysis, for messaging
-        let _pendingIncomingProfile = null; // incoming profile awaiting conflict resolution
-        let _pendingConflicts = [];          // array of {id, label, current, incoming}
-        let _conflictResolutions = {};       // {fieldId: 'keep'|'use'}
+        let _pendingIncomingProfile   = null; // incoming profile awaiting conflict resolution
+        let _pendingAutoMergedProfile = null; // base profile with new items already merged in
+        let _pendingConflicts = [];           // array of {id, label, section, type, current?, incoming}
+        let _conflictResolutions = {};        // {fieldId: 'keep'|'use'}
         let currentResumeText = null;
         let currentCoverLetterText = null;
         let currentViewedFileContent = null;
@@ -6637,31 +6658,80 @@ async function getUserSubscription() {
                 const firstText = await extractTextFromFile(files[0]);
                 
                 if (hasExistingProfile) {
-                    // Merge into existing profile instead of overwriting
+                    // Parse first file then check for conflicts before merging
                     const tempProfile = await parseResumeText(firstText);
-                    profileData = mergeProfiles(profileData, tempProfile);
+                    const autoMerged  = autoMergeNewItems(profileData, tempProfile);
+                    const conflicts   = detectUploadConflicts(autoMerged, tempProfile);
+
+                    if (conflicts.length > 0) {
+                        // Stash pending state and hand off to review section conflict UI
+                        _pendingIncomingProfile   = tempProfile;
+                        _pendingAutoMergedProfile = autoMerged;
+                        _pendingConflicts = conflicts;
+                        _conflictResolutions = {};
+                        statusDiv.innerHTML = '';
+                        statusDiv.classList.add('hidden');
+                        setTimeout(() => {
+                            showSection('review-section');
+                            setTimeout(() => {
+                                const reviewStatus = document.getElementById('review-upload-status');
+                                if (reviewStatus) {
+                                    reviewStatus.classList.remove('hidden');
+                                    reviewStatus.innerHTML = renderConflictCards(conflicts);
+                                    reviewStatus.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                            }, 350);
+                        }, 100);
+                        return;
+                    }
+
+                    // No conflicts — use auto-merged result (new items already folded in)
+                    profileData = autoMerged;
                 } else {
-                    // No existing profile — create fresh
-                    await parseExtractedText(firstText);
+                    // No existing profile — parse without saving so all files go through conflict detection
+                    profileData = await parseResumeText(firstText);
                 }
-                
-                // For additional files, always parse and merge
+
+                // For additional files, check conflicts against profile built so far
                 for (let i = 1; i < files.length; i++) {
                     statusDiv.innerHTML = `<p style="color: #2563eb; font-weight: 600;">Processing document ${i + 1} of ${files.length}...</p>`;
-                    
+
                     const text = await extractTextFromFile(files[i]);
                     const tempProfile = await parseResumeText(text);
-                    
-                    // Merge into existing profileData
-                    profileData = mergeProfiles(profileData, tempProfile);
+
+                    const autoMergedN        = autoMergeNewItems(profileData, tempProfile);
+                    const additionalConflicts = detectUploadConflicts(autoMergedN, tempProfile);
+                    if (additionalConflicts.length > 0) {
+                        _pendingIncomingProfile   = tempProfile;
+                        _pendingAutoMergedProfile = autoMergedN;
+                        _pendingConflicts = additionalConflicts;
+                        _conflictResolutions = {};
+                        statusDiv.innerHTML = '';
+                        statusDiv.classList.add('hidden');
+                        setTimeout(() => {
+                            showSection('review-section');
+                            setTimeout(() => {
+                                const reviewStatus = document.getElementById('review-upload-status');
+                                if (reviewStatus) {
+                                    reviewStatus.classList.remove('hidden');
+                                    reviewStatus.innerHTML = renderConflictCards(additionalConflicts);
+                                    reviewStatus.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                            }, 350);
+                        }, 100);
+                        return; // Stop — user must resolve before remaining files can be added
+                    }
+
+                    // No conflicts — use auto-merged result and continue
+                    profileData = autoMergedN;
                 }
-                
+
                 // Save merged result
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
-                
+
                 statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Documents processed successfully!</p>';
-                
+
                 // Auto-navigate to review after successful upload
                 setTimeout(() => {
                     displayProfileForReview();
@@ -6694,9 +6764,9 @@ async function getUserSubscription() {
 
 EXTRACTION RULES:
 - Parse name, email, phone, location (city/state), complete LinkedIn URL
-- Experience: Extract all work history with achievements - preserve complete text with metrics
-- Skills: List all skills mentioned
-- Education: Extract degrees and formal education only
+- Experience: Extract all work history with achievements - preserve complete text with metrics. Format each position as "Title | Company | Location | Dates" on the first line, followed by description. Separate each position from the next with a blank line (\\n\\n).
+- Skills: List all skills as a comma-separated list
+- Education: Extract degrees and formal education only. Separate each degree with a blank line (\\n\\n).
 - Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
 - Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
 - Dates: Keep original format from resume
@@ -6746,28 +6816,25 @@ Return ONLY the JSON.`;
             try {
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
-                const conflicts = detectUploadConflicts(profileData, tempProfile);
-
-                // DEBUG — remove before ship
-                console.log('[upload] profileData at conflict check:', profileData);
-                console.log('[upload] tempProfile from parse:', tempProfile);
-                console.log('[upload] conflicts detected:', conflicts);
-                showToast(`[debug] ${conflicts.length} conflict(s) detected. Profile null? ${profileData === null}`, conflicts.length > 0 ? 'success' : 'error');
+                const autoMergedR = autoMergeNewItems(profileData, tempProfile);
+                const conflicts   = detectUploadConflicts(autoMergedR, tempProfile);
 
                 if (conflicts.length === 0) {
-                    // No conflicts — auto-merge and save immediately
-                    profileData = mergeProfiles(profileData, tempProfile);
+                    // No conflicts — use auto-merged result and save immediately
+                    profileData = autoMergedR;
                     await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                     await saveProfileToCloud(profileData);
                     statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
                     displayProfileForReview();
                     setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
                 } else {
-                    // Conflicts found — stash incoming profile and show resolution cards
-                    _pendingIncomingProfile = tempProfile;
+                    // True conflicts found — stash and show resolution cards
+                    _pendingIncomingProfile   = tempProfile;
+                    _pendingAutoMergedProfile = autoMergedR;
                     _pendingConflicts = conflicts;
                     _conflictResolutions = {};
                     statusDiv.innerHTML = renderConflictCards(conflicts);
+                    setTimeout(() => statusDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                 }
 
             } catch (error) {
@@ -6778,116 +6845,299 @@ Return ONLY the JSON.`;
             event.target.value = '';
         }
 
+        // ── Conflict detection helpers ────────────────────────────────────────────
+        function _splitDoubleNewline(text) {
+            if (!text || !text.trim()) return [];
+            return text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+        }
+        function _splitListItems(text) {
+            // Prefer comma-split when there are multiple commas; else newline-split
+            if (!text || !text.trim()) return [];
+            const byComma = text.split(',').map(s => s.trim()).filter(Boolean);
+            if (byComma.length > 1) return byComma;
+            return text.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+        // Build a noise-free match key from a role/education header.
+        // The AI formats headers as "Title | Company | Location | Dates" on one line.
+        // We use ONLY the first two pipe segments (title + company) so that location
+        // variation ("Mountain View, CA" vs "San Francisco Bay Area") and date format
+        // differences don't reduce overlap below the 0.7 fuzzy-match threshold.
+        // Falls back to the full first line if no pipes are present.
+        function _headerKey(text) {
+            const firstLine = text.split('\n')[0];
+            const pipes = firstLine.split(/\s*\|\s*/);
+            const base = pipes.length >= 2
+                ? pipes[0] + ' ' + pipes[1]   // title + company only
+                : firstLine;                    // no-pipe fallback
+            return base
+                .toLowerCase()
+                .replace(/\b(19|20)\d{2}\b/g, '')
+                .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/g, '')
+                .replace(/\b(present|current|remote|hybrid|onsite)\b/g, '')
+                .replace(/[^a-z0-9]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+        // Split experience text into individual role blocks.
+        // Prefers double-newline separation; falls back to detecting role-header lines
+        // (lines containing a 4-digit year AND a pipe separator, typical of resume headers).
+        function _splitExperience(text) {
+            if (!text || !text.trim()) return [];
+            const byDouble = text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+            if (byDouble.length > 1) return byDouble;
+            // Fallback: split before lines that look like role headers
+            // Role header: contains a year (19xx/20xx) AND a pipe character
+            const lines = text.split('\n');
+            const entries = [];
+            let current = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const isRoleHeader = i > 0
+                    && /\b(19|20)\d{2}\b/.test(line)
+                    && /\|/.test(line);
+                if (isRoleHeader && current.length > 0) {
+                    entries.push(current.join('\n').trim());
+                    current = [line];
+                } else {
+                    current.push(line);
+                }
+            }
+            if (current.length > 0) entries.push(current.join('\n').trim());
+            return entries.filter(Boolean);
+        }
+        // Split education text — same logic as experience
+        function _splitEducation(text) {
+            if (!text || !text.trim()) return [];
+            const byDouble = text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+            if (byDouble.length > 1) return byDouble;
+            const lines = text.split('\n');
+            const entries = [];
+            let current = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const isEntryHeader = i > 0
+                    && /\b(19|20)\d{2}\b/.test(line)
+                    && /\|/.test(line);
+                if (isEntryHeader && current.length > 0) {
+                    entries.push(current.join('\n').trim());
+                    current = [line];
+                } else {
+                    current.push(line);
+                }
+            }
+            if (current.length > 0) entries.push(current.join('\n').trim());
+            return entries.filter(Boolean);
+        }
+        // Fuzzy word-overlap match. Returns true if shared words / smaller-set words >= threshold.
+        // Experience/education: pass _headerKey(text) (noise-stripped) at 0.7.
+        // Skills/certs: pass full string at 0.7.
+        function _fuzzyMatch(a, b, threshold) {
+            const words = s => new Set(
+                s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
+            );
+            const wa = words(a), wb = words(b);
+            if (wa.size === 0 || wb.size === 0) return false;
+            const smaller = wa.size <= wb.size ? wa : wb;
+            const larger  = wa.size <= wb.size ? wb : wa;
+            const overlap = [...smaller].filter(w => larger.has(w)).length;
+            return overlap / smaller.size >= threshold;
+        }
+
+        // Silently merge items from incoming that don't exist in existing.
+        // Returns the merged profile without saving — no user input needed for pure additions.
+        function autoMergeNewItems(existing, incoming) {
+            const ex  = existing || {};
+            const inc = incoming || {};
+            const updated = { ...ex };
+
+            // Contact fields — auto-resolve to most complete (longer) value
+            for (const field of ['name', 'email', 'phone', 'location', 'linkedin']) {
+                const cur = (ex[field] || '').toString().trim();
+                const nw  = (inc[field] || '').toString().trim();
+                if (!cur && nw) {
+                    updated[field] = nw;
+                } else if (cur && nw && nw.length > cur.length) {
+                    updated[field] = nw;
+                }
+            }
+
+            // Experience roles not in existing
+            const exRoles  = _splitExperience(experienceToText(ex.experience));
+            const incRoles = _splitExperience(experienceToText(inc.experience));
+            const newRoles = incRoles.filter(r => !exRoles.some(e => _fuzzyMatch(_headerKey(e), _headerKey(r), 0.7)));
+            if (newRoles.length) {
+                const base = experienceToText(updated.experience || '');
+                updated.experience = base ? base + '\n\n' + newRoles.join('\n\n') : newRoles.join('\n\n');
+            }
+
+            // Skills not in existing
+            const exSkills  = _splitListItems((ex.skills  || '').toString());
+            const incSkills = _splitListItems((inc.skills || '').toString());
+            const newSkills = incSkills.filter(s => !exSkills.some(e => _fuzzyMatch(e, s, 0.7)));
+            if (newSkills.length) {
+                updated.skills = updated.skills
+                    ? updated.skills + ', ' + newSkills.join(', ')
+                    : newSkills.join(', ');
+            }
+
+            // Education entries not in existing
+            const exEdu  = _splitEducation((ex.education  || '').toString());
+            const incEdu = _splitEducation((inc.education || '').toString());
+            const newEdu = incEdu.filter(e => !exEdu.some(x => _fuzzyMatch(_headerKey(x), _headerKey(e), 0.7)));
+            if (newEdu.length) {
+                updated.education = updated.education
+                    ? updated.education + '\n\n' + newEdu.join('\n\n')
+                    : newEdu.join('\n\n');
+            }
+
+            // Certifications not in existing
+            const exCerts  = _splitListItems((ex.certifications  || '').toString());
+            const incCerts = _splitListItems((inc.certifications || '').toString());
+            const newCerts = incCerts.filter(c => !exCerts.some(x => _fuzzyMatch(x, c, 0.7)));
+            if (newCerts.length) {
+                updated.certifications = updated.certifications
+                    ? updated.certifications + ', ' + newCerts.join(', ')
+                    : newCerts.join(', ');
+            }
+
+            debugLog(`autoMergeNewItems: added ${newRoles.length} role(s), ${newSkills.length} skill(s), ${newEdu.length} edu, ${newCerts.length} cert(s)`);
+            return updated;
+        }
+
         function detectUploadConflicts(existing, incoming) {
-            const CONFLICT_FIELDS = [
-                { id: 'name',     label: 'Full Name' },
-                { id: 'email',    label: 'Email' },
-                { id: 'phone',    label: 'Phone' },
-                { id: 'location', label: 'Location' },
-                { id: 'linkedin', label: 'LinkedIn' }
-            ];
             const conflicts = [];
+            const ex = existing || {};
+            const inc = incoming || {};
 
-            // Check scalar contact fields
-            for (const { id, label } of CONFLICT_FIELDS) {
-                const cur = ((existing || {})[id] || '').toString().trim();
-                const inc = ((incoming || {})[id] || '').toString().trim();
-                if (cur && inc && cur !== inc) {
-                    conflicts.push({ id, label, current: cur, incoming: inc });
+            // Contact fields are auto-resolved in autoMergeNewItems (most complete wins) — no conflict cards
+
+            // 1. Experience — identity: header fuzzy-match at 0.7; conflict: content fuzzy-match below 0.92
+            // Two-stage: same role identity (title+company) but substantially different description → card.
+            // Minor differences (punctuation, trivial rewording) won't drop below 0.92 — auto-merged silently.
+            const exRoles  = _splitExperience(experienceToText(ex.experience));
+            const incRoles = _splitExperience(experienceToText(inc.experience));
+            const usedExRoles = new Set();
+            incRoles.forEach((role, i) => {
+                const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_headerKey(r), _headerKey(role), 0.7));
+                if (match && !_fuzzyMatch(match, role, 0.92)) {
+                    usedExRoles.add(match);
+                    conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
-            }
+            });
 
-            // Check content fields — normalise experience (may be array or string)
-            const contentFields = [
-                { id: 'experience', label: 'Work Experience', getValue: (p) => experienceToText((p || {}).experience) },
-                { id: 'skills',     label: 'Skills',          getValue: (p) => ((p || {}).skills || '').toString() },
-                { id: 'education',  label: 'Education',       getValue: (p) => ((p || {}).education || '').toString() }
-            ];
-            for (const { id, label, getValue } of contentFields) {
-                const cur = getValue(existing).trim();
-                const inc = getValue(incoming).trim();
-                if (cur && inc && cur !== inc) {
-                    conflicts.push({ id, label, current: cur, incoming: inc });
+            // 3. Skills — identity + content both via fuzzy match; card only if substantially different
+            const exSkills  = _splitListItems((ex.skills  || '').toString());
+            const incSkills = _splitListItems((inc.skills || '').toString());
+            const usedExSkills = new Set();
+            incSkills.forEach((skill, i) => {
+                const match = exSkills.find(s => !usedExSkills.has(s) && _fuzzyMatch(s, skill, 0.7));
+                if (match && !_fuzzyMatch(match, skill, 0.92)) {
+                    usedExSkills.add(match);
+                    conflicts.push({ id: `skill_chg_${i}`, label: 'Skill', section: 'skills', type: 'conflict', current: match, incoming: skill });
                 }
-            }
+            });
 
+            // 4. Education — same two-stage approach as experience
+            const exEdu  = _splitEducation((ex.education  || '').toString());
+            const incEdu = _splitEducation((inc.education || '').toString());
+            const usedExEdu = new Set();
+            incEdu.forEach((entry, i) => {
+                const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_headerKey(e), _headerKey(entry), 0.7));
+                if (match && !_fuzzyMatch(match, entry, 0.92)) {
+                    usedExEdu.add(match);
+                    conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
+                }
+            });
+
+            // 5. Certifications — same two-stage approach as skills
+            const exCerts  = _splitListItems((ex.certifications  || '').toString());
+            const incCerts = _splitListItems((inc.certifications || '').toString());
+            const usedExCerts = new Set();
+            incCerts.forEach((cert, i) => {
+                const match = exCerts.find(c => !usedExCerts.has(c) && _fuzzyMatch(c, cert, 0.7));
+                if (match && !_fuzzyMatch(match, cert, 0.92)) {
+                    usedExCerts.add(match);
+                    conflicts.push({ id: `cert_chg_${i}`, label: 'Certification', section: 'certifications', type: 'conflict', current: match, incoming: cert });
+                }
+            });
+
+            debugLog(`detectUploadConflicts: ${conflicts.length} item(s)`, conflicts.map(c => c.id));
             return conflicts;
         }
 
         function renderConflictCards(conflicts) {
+            const CARD_BASE = `border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;`;
+            // Override global button CSS (overflow:hidden, inline-flex, centered) so full text is visible
+            const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s; overflow: visible; display: block; width: 100%; align-items: flex-start; justify-content: flex-start; font-family: inherit;`;
+
             const cards = conflicts.map(c => {
-                const preview = (val) => val.length > 120 ? val.slice(0, 117) + '…' : val;
+                const hasBoth = (c.section === 'experience' || c.section === 'education');
+                const bothBtn = hasBoth ? `
+                            <button id="conflict-both-${c.id}" onclick="selectConflictOption('${c.id}','both')" style="${BTN_BASE} margin-top: 10px;">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP BOTH</span>
+                                <span style="font-size: 0.82rem; color: #1e293b;">Combines both descriptions into one entry</span>
+                            </button>` : '';
                 return `
-                <div id="conflict-card-${c.id}" class="conflict-card" style="
-                    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;">
-                    <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${c.label}</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="
-                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
-                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
-                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.current)}</span>
-                        </button>
-                        <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="
-                            border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;
-                            background: #f8fafc; cursor: pointer; text-align: left; transition: border-color 0.15s;">
-                            <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
-                            <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${preview(c.incoming)}</span>
-                        </button>
-                    </div>
-                </div>`;
+                    <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
+                        <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button id="conflict-keep-${c.id}" onclick="selectConflictOption('${c.id}','keep')" style="${BTN_BASE}">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP CURRENT</span>
+                                <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.current)}</span>
+                            </button>
+                            <button id="conflict-use-${c.id}" onclick="selectConflictOption('${c.id}','use')" style="${BTN_BASE}">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">USE NEW</span>
+                                <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
+                            </button>
+                        </div>
+                        ${bothBtn}
+                    </div>`;
             }).join('');
 
             return `
             <div style="margin-bottom: 16px;">
                 <p style="font-weight: 700; color: #0f172a; margin: 0 0 4px;">Conflicts found</p>
-                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 14px;">
-                    The uploaded resume differs from your saved profile in the fields below.
-                    Choose which version to keep for each field.
+                <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 4px;">
+                    Your uploaded resume contains items that differ from your saved profile. New items were added automatically.
+                </p>
+                <p style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin: 0 0 14px;">
+                    Select <strong>Keep Current</strong>, <strong>Use New</strong>, or <strong>Keep Both</strong> (experience &amp; education) for each card below. Apply &amp; Merge activates once every conflict is resolved.
                 </p>
                 ${cards}
                 <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
                     margin-top: 8px; padding: 10px 20px; border-radius: 8px;
                     border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer;
                     background: #94a3b8; color: #fff; transition: background 0.15s;"
-                    title="Resolve all conflicts above to continue">
+                    title="Resolve all items above to continue">
                     Apply &amp; Merge
                 </button>
             </div>`;
         }
 
         function selectConflictOption(fieldId, choice) {
-            // Update resolution record
             _conflictResolutions[fieldId] = choice;
 
-            // Visual feedback — highlight selected button, de-highlight the other
-            const keepBtn = document.getElementById('conflict-keep-' + fieldId);
-            const useBtn  = document.getElementById('conflict-use-'  + fieldId);
-            if (keepBtn && useBtn) {
-                const selectedStyle = 'border: 2px solid #3b82f6; background: #eff6ff;';
-                const defaultStyle  = 'border: 2px solid #e2e8f0; background: #f8fafc;';
-                keepBtn.style.cssText = keepBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
-                useBtn.style.cssText  = useBtn.style.cssText.replace(/border:[^;]+;/, '').replace(/background:[^;]+;/, '');
-                if (choice === 'keep') {
-                    keepBtn.style.border = '2px solid #3b82f6';
-                    keepBtn.style.background = '#eff6ff';
-                    useBtn.style.border = '2px solid #e2e8f0';
-                    useBtn.style.background = '#f8fafc';
-                } else {
-                    useBtn.style.border = '2px solid #3b82f6';
-                    useBtn.style.background = '#eff6ff';
-                    keepBtn.style.border = '2px solid #e2e8f0';
-                    keepBtn.style.background = '#f8fafc';
-                }
-            }
+            // Highlight selected, reset the other button in the pair
+            const btnIds = {
+                keep: document.getElementById('conflict-keep-' + fieldId),
+                use:  document.getElementById('conflict-use-'  + fieldId),
+                both: document.getElementById('conflict-both-' + fieldId)
+            };
+            Object.entries(btnIds).forEach(([name, btn]) => {
+                if (!btn) return;
+                const selected = name === choice;
+                btn.style.border     = selected ? '2px solid #3b82f6' : '2px solid #e2e8f0';
+                btn.style.background = selected ? '#eff6ff' : '#f8fafc';
+                btn.style.color      = selected ? '#1d4ed8' : '#64748b';
+            });
 
-            // Enable Apply button once all conflicts are resolved
+            // Enable Apply once every item is resolved
             const allResolved = _pendingConflicts.every(c => _conflictResolutions[c.id]);
             const applyBtn = document.getElementById('conflict-apply-btn');
             if (applyBtn) {
-                applyBtn.disabled = !allResolved;
+                applyBtn.disabled        = !allResolved;
                 applyBtn.style.background = allResolved ? '#3b82f6' : '#94a3b8';
-                applyBtn.style.cursor = allResolved ? 'pointer' : 'default';
+                applyBtn.style.cursor     = allResolved ? 'pointer' : 'default';
             }
         }
 
@@ -6898,30 +7148,85 @@ Return ONLY the JSON.`;
             if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = 'Saving…'; }
 
             try {
-                // Start with auto-merged profile (handles arrays, empty fields, etc.)
-                const merged = mergeProfiles(profileData, _pendingIncomingProfile);
+                // Start from the auto-merged base (new items already folded in)
+                // then apply user choices for true conflicts only
+                const updated = { ...(_pendingAutoMergedProfile || profileData) };
 
-                // Override each conflict field with the user's chosen value
                 for (const conflict of _pendingConflicts) {
-                    const choice = _conflictResolutions[conflict.id];
-                    merged[conflict.id] = choice === 'use' ? conflict.incoming : conflict.current;
+                    const choice  = _conflictResolutions[conflict.id];
+                    const section = conflict.section;
+
+                    if (conflict.type === 'conflict' && choice === 'use') {
+                        if (section === 'experience') {
+                            const roles = _splitExperience(experienceToText(updated.experience));
+                            const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
+                            if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
+                            updated.experience = roles.join('\n\n');
+                        } else if (section === 'education') {
+                            const entries = _splitEducation(updated.education || '');
+                            const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
+                            if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
+                            updated.education = entries.join('\n\n');
+                        } else if (section === 'skills') {
+                            const list = _splitListItems(updated.skills || '');
+                            const idx  = list.findIndex(s => _fuzzyMatch(s, conflict.current, 0.7));
+                            if (idx >= 0) list[idx] = conflict.incoming; else list.push(conflict.incoming);
+                            updated.skills = list.join(', ');
+                        } else if (section === 'certifications') {
+                            const list = _splitListItems(updated.certifications || '');
+                            const idx  = list.findIndex(c => _fuzzyMatch(c, conflict.current, 0.7));
+                            if (idx >= 0) list[idx] = conflict.incoming; else list.push(conflict.incoming);
+                            updated.certifications = list.join(', ');
+                        }
+                    } else if (conflict.type === 'conflict' && choice === 'both') {
+                        if (section === 'experience') {
+                            const roles = _splitExperience(experienceToText(updated.experience));
+                            const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
+                            // Strip duplicate role header from incoming — header already present in conflict.current.
+                            // Using \n (not \n\n) so _splitExperience won't re-split the combined entry on future calls.
+                            const incLines = conflict.incoming.split('\n');
+                            const incBody  = (incLines.length > 1 && /\|/.test(incLines[0]))
+                                ? incLines.slice(1).join('\n').trim()
+                                : conflict.incoming;
+                            const combined = conflict.current + '\n' + incBody;
+                            if (idx >= 0) roles[idx] = combined; else roles.push(combined);
+                            updated.experience = roles.join('\n\n');
+                        } else if (section === 'education') {
+                            const entries = _splitEducation(updated.education || '');
+                            const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
+                            const incLines = conflict.incoming.split('\n');
+                            const incBody  = (incLines.length > 1 && /\|/.test(incLines[0]))
+                                ? incLines.slice(1).join('\n').trim()
+                                : conflict.incoming;
+                            const combined = conflict.current + '\n' + incBody;
+                            if (idx >= 0) entries[idx] = combined; else entries.push(combined);
+                            updated.education = entries.join('\n\n');
+                        }
+                    }
+                    // choice === 'keep': no change needed
                 }
 
-                profileData = merged;
+                profileData = updated;
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
 
-                // Clear pending state
-                _pendingIncomingProfile = null;
-                _pendingConflicts = [];
-                _conflictResolutions = {};
+                _pendingIncomingProfile   = null;
+                _pendingAutoMergedProfile = null;
+                _pendingConflicts         = [];
+                _conflictResolutions      = {};
 
+                // Clear conflict cards immediately and update profile fields
                 const statusDiv = document.getElementById('review-upload-status');
                 if (statusDiv) {
-                    statusDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✓ Resume merged into your profile successfully!</p>';
-                    setTimeout(() => { statusDiv.classList.add('hidden'); statusDiv.innerHTML = ''; }, 3000);
+                    statusDiv.classList.add('hidden');
+                    statusDiv.innerHTML = '';
                 }
                 displayProfileForReview();
+                // Scroll to profile fields so user sees the merged result
+                const profileReview = document.getElementById('profile-review');
+                if (profileReview) {
+                    setTimeout(() => profileReview.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+                }
 
             } catch (error) {
                 console.error('Conflict resolution apply error:', error);
@@ -7594,9 +7899,9 @@ Return ONLY this JSON (no markdown, no fences):
 
 EXTRACTION RULES:
 - Parse name, email, phone, location (city/state), complete LinkedIn URL
-- Experience: Extract all work history with achievements - preserve complete text with metrics
-- Skills: List all skills mentioned
-- Education: Extract degrees and formal education only
+- Experience: Extract all work history with achievements - preserve complete text with metrics. Format each position as "Title | Company | Location | Dates" on the first line, followed by the description. Separate each position from the next with a blank line (\\n\\n).
+- Skills: List all skills as a comma-separated list
+- Education: Extract degrees and formal education only. Separate each degree with a blank line (\\n\\n).
 - Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
 - Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
 - Dates: Keep original format from resume
@@ -8001,6 +8306,14 @@ Return ONLY the JSON.`;
         }
 
         async function confirmProfile() {
+            // Block if the user has unresolved conflict cards
+            if (_pendingConflicts && _pendingConflicts.length > 0) {
+                toastWarning('Please resolve all conflicts above before continuing.');
+                const statusDiv = document.getElementById('review-upload-status');
+                if (statusDiv) statusDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+            }
+
             // Get values from review fields
             const name = document.getElementById('review-name').value;
             const email = document.getElementById('review-email').value;
