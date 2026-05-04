@@ -6857,13 +6857,6 @@ Return ONLY the JSON.`;
             if (byComma.length > 1) return byComma;
             return text.split('\n').map(s => s.trim()).filter(Boolean);
         }
-        function _normText(text) {
-            return text.replace(/\s+/g, ' ').trim().toLowerCase();
-        }
-        // Extract first 2-3 lines of a multi-line entry (company + title + dates)
-        function _entryHeader(text) {
-            return text.split('\n').slice(0, 3).join('\n');
-        }
         // Build a noise-free match key from a role/education header.
         // The AI formats headers as "Title | Company | Location | Dates" on one line.
         // We use ONLY the first two pipe segments (title + company) so that location
