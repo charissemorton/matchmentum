@@ -6688,8 +6688,8 @@ async function getUserSubscription() {
                     // No conflicts — use auto-merged result (new items already folded in)
                     profileData = autoMerged;
                 } else {
-                    // No existing profile — create fresh
-                    await parseExtractedText(firstText);
+                    // No existing profile — parse without saving so all files go through conflict detection
+                    profileData = await parseResumeText(firstText);
                 }
 
                 // For additional files, check conflicts against profile built so far
@@ -6948,6 +6948,17 @@ Return ONLY the JSON.`;
             const inc = incoming || {};
             const updated = { ...ex };
 
+            // Contact fields — auto-resolve to most complete (longer) value
+            for (const field of ['name', 'email', 'phone', 'location', 'linkedin']) {
+                const cur = (ex[field] || '').toString().trim();
+                const nw  = (inc[field] || '').toString().trim();
+                if (!cur && nw) {
+                    updated[field] = nw;
+                } else if (cur && nw && nw.length > cur.length) {
+                    updated[field] = nw;
+                }
+            }
+
             // Experience roles not in existing
             const exRoles  = _splitExperience(experienceToText(ex.experience));
             const incRoles = _splitExperience(experienceToText(inc.experience));
@@ -6996,23 +7007,9 @@ Return ONLY the JSON.`;
             const ex = existing || {};
             const inc = incoming || {};
 
-            // 1. Contact fields — field level
-            const CONTACT = [
-                { id: 'name',     label: 'Full Name' },
-                { id: 'email',    label: 'Email' },
-                { id: 'phone',    label: 'Phone' },
-                { id: 'location', label: 'Location' },
-                { id: 'linkedin', label: 'LinkedIn' }
-            ];
-            for (const { id, label } of CONTACT) {
-                const cur = (ex[id] || '').toString().trim();
-                const nw  = (inc[id] || '').toString().trim();
-                if (cur && nw && cur !== nw) {
-                    conflicts.push({ id, label, section: id, type: 'conflict', current: cur, incoming: nw });
-                }
-            }
+            // Contact fields are auto-resolved in autoMergeNewItems (most complete wins) — no conflict cards
 
-            // 2. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
+            // 1. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
             // Track matched existing items so each existing entry only maps to one incoming entry
             const exRoles  = _splitExperience(experienceToText(ex.experience));
             const incRoles = _splitExperience(experienceToText(inc.experience));
@@ -7070,7 +7067,14 @@ Return ONLY the JSON.`;
             // Override global button CSS (overflow:hidden, inline-flex, centered) so full text is visible
             const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s; overflow: visible; display: block; width: 100%; align-items: flex-start; justify-content: flex-start; font-family: inherit;`;
 
-            const cards = conflicts.map(c => `
+            const cards = conflicts.map(c => {
+                const hasBoth = (c.section === 'experience' || c.section === 'education');
+                const bothBtn = hasBoth ? `
+                            <button id="conflict-both-${c.id}" onclick="selectConflictOption('${c.id}','both')" style="${BTN_BASE} margin-top: 10px;">
+                                <span style="display: block; font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 4px;">KEEP BOTH</span>
+                                <span style="font-size: 0.82rem; color: #1e293b;">Combines both descriptions into one entry</span>
+                            </button>` : '';
+                return `
                     <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
                         <p style="font-weight: 700; font-size: 0.9rem; color: #0f172a; margin: 0 0 10px;">${escapeHtml(c.label)}</p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -7083,8 +7087,9 @@ Return ONLY the JSON.`;
                                 <span style="font-size: 0.82rem; color: #1e293b; white-space: pre-wrap; word-break: break-word;">${escapeHtml(c.incoming)}</span>
                             </button>
                         </div>
-                    </div>`
-            ).join('');
+                        ${bothBtn}
+                    </div>`;
+            }).join('');
 
             return `
             <div style="margin-bottom: 16px;">
@@ -7093,7 +7098,7 @@ Return ONLY the JSON.`;
                     Your uploaded resume contains items that differ from your saved profile. New items were added automatically.
                 </p>
                 <p style="font-size: 0.85rem; color: #3b82f6; font-weight: 600; margin: 0 0 14px;">
-                    Select <strong>Keep Current</strong> or <strong>Use New</strong> for each card below. Apply &amp; Merge activates once every conflict is resolved.
+                    Select <strong>Keep Current</strong>, <strong>Use New</strong>, or <strong>Keep Both</strong> (experience &amp; education) for each card below. Apply &amp; Merge activates once every conflict is resolved.
                 </p>
                 ${cards}
                 <button id="conflict-apply-btn" onclick="applyConflictResolutions()" disabled style="
@@ -7112,7 +7117,8 @@ Return ONLY the JSON.`;
             // Highlight selected, reset the other button in the pair
             const btnIds = {
                 keep: document.getElementById('conflict-keep-' + fieldId),
-                use:  document.getElementById('conflict-use-'  + fieldId)
+                use:  document.getElementById('conflict-use-'  + fieldId),
+                both: document.getElementById('conflict-both-' + fieldId)
             };
             Object.entries(btnIds).forEach(([name, btn]) => {
                 if (!btn) return;
@@ -7148,9 +7154,7 @@ Return ONLY the JSON.`;
                     const section = conflict.section;
 
                     if (conflict.type === 'conflict' && choice === 'use') {
-                        if (['name','email','phone','location','linkedin'].includes(section)) {
-                            updated[section] = conflict.incoming;
-                        } else if (section === 'experience') {
+                        if (section === 'experience') {
                             const roles = _splitExperience(experienceToText(updated.experience));
                             const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
@@ -7170,6 +7174,20 @@ Return ONLY the JSON.`;
                             const idx  = list.findIndex(c => _fuzzyMatch(c, conflict.current, 0.7));
                             if (idx >= 0) list[idx] = conflict.incoming; else list.push(conflict.incoming);
                             updated.certifications = list.join(', ');
+                        }
+                    } else if (conflict.type === 'conflict' && choice === 'both') {
+                        if (section === 'experience') {
+                            const roles = _splitExperience(experienceToText(updated.experience));
+                            const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
+                            const combined = conflict.current + '\n\n' + conflict.incoming;
+                            if (idx >= 0) roles[idx] = combined; else roles.push(combined);
+                            updated.experience = roles.join('\n\n');
+                        } else if (section === 'education') {
+                            const entries = _splitEducation(updated.education || '');
+                            const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
+                            const combined = conflict.current + '\n\n' + conflict.incoming;
+                            if (idx >= 0) entries[idx] = combined; else entries.push(combined);
+                            updated.education = entries.join('\n\n');
                         }
                     }
                     // choice === 'keep': no change needed
