@@ -6864,10 +6864,19 @@ Return ONLY the JSON.`;
         function _entryHeader(text) {
             return text.split('\n').slice(0, 3).join('\n');
         }
-        // Strip date/location noise from a header so matching is driven by
-        // role title and company name only — not shared years, months, or "Remote".
+        // Build a noise-free match key from a role/education header.
+        // The AI formats headers as "Title | Company | Location | Dates" on one line.
+        // We use ONLY the first two pipe segments (title + company) so that location
+        // variation ("Mountain View, CA" vs "San Francisco Bay Area") and date format
+        // differences don't reduce overlap below the 0.7 fuzzy-match threshold.
+        // Falls back to the full first line if no pipes are present.
         function _headerKey(text) {
-            return _entryHeader(text)
+            const firstLine = text.split('\n')[0];
+            const pipes = firstLine.split(/\s*\|\s*/);
+            const base = pipes.length >= 2
+                ? pipes[0] + ' ' + pipes[1]   // title + company only
+                : firstLine;                    // no-pipe fallback
+            return base
                 .toLowerCase()
                 .replace(/\b(19|20)\d{2}\b/g, '')
                 .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/g, '')
