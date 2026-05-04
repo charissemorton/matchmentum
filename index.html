@@ -6857,12 +6857,25 @@ Return ONLY the JSON.`;
             if (byComma.length > 1) return byComma;
             return text.split('\n').map(s => s.trim()).filter(Boolean);
         }
-        function _itemKey(item) {
-            // First 60 chars of first line, lower-cased — used to match the same role/degree across versions
-            return item.split('\n')[0].trim().toLowerCase().slice(0, 60);
-        }
         function _normText(text) {
             return text.replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+        // Extract first 2-3 lines of a multi-line entry (company + title + dates)
+        function _entryHeader(text) {
+            return text.split('\n').slice(0, 3).join('\n');
+        }
+        // Fuzzy word-overlap match. Returns true if shared words / smaller-set words >= threshold.
+        // Use threshold 0.6 for experience/education headers, 0.7 for skills/certs.
+        function _fuzzyMatch(a, b, threshold) {
+            const words = s => new Set(
+                s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
+            );
+            const wa = words(a), wb = words(b);
+            if (wa.size === 0 || wb.size === 0) return false;
+            const smaller = wa.size <= wb.size ? wa : wb;
+            const larger  = wa.size <= wb.size ? wb : wa;
+            const overlap = [...smaller].filter(w => larger.has(w)).length;
+            return overlap / smaller.size >= threshold;
         }
 
         // Silently merge items from incoming that don't exist in existing.
@@ -6875,7 +6888,7 @@ Return ONLY the JSON.`;
             // Experience roles not in existing
             const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
             const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
-            const newRoles = incRoles.filter(r => !exRoles.some(e => _itemKey(e) === _itemKey(r)));
+            const newRoles = incRoles.filter(r => !exRoles.some(e => _fuzzyMatch(_entryHeader(e), _entryHeader(r), 0.6)));
             if (newRoles.length) {
                 const base = experienceToText(updated.experience || '');
                 updated.experience = base ? base + '\n\n' + newRoles.join('\n\n') : newRoles.join('\n\n');
@@ -6884,7 +6897,7 @@ Return ONLY the JSON.`;
             // Skills not in existing
             const exSkills  = _splitListItems((ex.skills  || '').toString());
             const incSkills = _splitListItems((inc.skills || '').toString());
-            const newSkills = incSkills.filter(s => !exSkills.some(e => e.toLowerCase() === s.toLowerCase()));
+            const newSkills = incSkills.filter(s => !exSkills.some(e => _fuzzyMatch(e, s, 0.7)));
             if (newSkills.length) {
                 updated.skills = updated.skills
                     ? updated.skills + ', ' + newSkills.join(', ')
@@ -6894,7 +6907,7 @@ Return ONLY the JSON.`;
             // Education entries not in existing
             const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
             const incEdu = _splitDoubleNewline((inc.education || '').toString());
-            const newEdu = incEdu.filter(e => !exEdu.some(x => _itemKey(x) === _itemKey(e)));
+            const newEdu = incEdu.filter(e => !exEdu.some(x => _fuzzyMatch(_entryHeader(x), _entryHeader(e), 0.6)));
             if (newEdu.length) {
                 updated.education = updated.education
                     ? updated.education + '\n\n' + newEdu.join('\n\n')
@@ -6904,7 +6917,7 @@ Return ONLY the JSON.`;
             // Certifications not in existing
             const exCerts  = _splitListItems((ex.certifications  || '').toString());
             const incCerts = _splitListItems((inc.certifications || '').toString());
-            const newCerts = incCerts.filter(c => !exCerts.some(x => x.toLowerCase() === c.toLowerCase()));
+            const newCerts = incCerts.filter(c => !exCerts.some(x => _fuzzyMatch(x, c, 0.7)));
             if (newCerts.length) {
                 updated.certifications = updated.certifications
                     ? updated.certifications + ', ' + newCerts.join(', ')
@@ -6936,29 +6949,45 @@ Return ONLY the JSON.`;
                 }
             }
 
-            // 2. Experience — one card per role where same role key exists but content differs
+            // 2. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
             const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
             const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
             incRoles.forEach((role, i) => {
-                const match = exRoles.find(r => _itemKey(r) === _itemKey(role));
+                const match = exRoles.find(r => _fuzzyMatch(_entryHeader(r), _entryHeader(role), 0.6));
                 if (match && _normText(match) !== _normText(role)) {
                     conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
             });
 
-            // 3. Skills — no card needed; new skills are auto-merged
+            // 3. Skills — fuzzy match on full string; conflict card if text differs
+            const exSkills  = _splitListItems((ex.skills  || '').toString());
+            const incSkills = _splitListItems((inc.skills || '').toString());
+            incSkills.forEach((skill, i) => {
+                const match = exSkills.find(s => _fuzzyMatch(s, skill, 0.7));
+                if (match && _normText(match) !== _normText(skill)) {
+                    conflicts.push({ id: `skill_chg_${i}`, label: 'Skill', section: 'skills', type: 'conflict', current: match, incoming: skill });
+                }
+            });
 
-            // 4. Education — one card per entry where same entry key exists but content differs
+            // 4. Education — fuzzy match on first 2-3 lines; conflict card if full text differs
             const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
             const incEdu = _splitDoubleNewline((inc.education || '').toString());
             incEdu.forEach((entry, i) => {
-                const match = exEdu.find(e => _itemKey(e) === _itemKey(entry));
+                const match = exEdu.find(e => _fuzzyMatch(_entryHeader(e), _entryHeader(entry), 0.6));
                 if (match && _normText(match) !== _normText(entry)) {
                     conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
                 }
             });
 
-            // 5. Certifications — no card needed; new certs are auto-merged
+            // 5. Certifications — fuzzy match on full string; conflict card if text differs
+            const exCerts  = _splitListItems((ex.certifications  || '').toString());
+            const incCerts = _splitListItems((inc.certifications || '').toString());
+            incCerts.forEach((cert, i) => {
+                const match = exCerts.find(c => _fuzzyMatch(c, cert, 0.7));
+                if (match && _normText(match) !== _normText(cert)) {
+                    conflicts.push({ id: `cert_chg_${i}`, label: 'Certification', section: 'certifications', type: 'conflict', current: match, incoming: cert });
+                }
+            });
 
             debugLog(`detectUploadConflicts: ${conflicts.length} item(s)`, conflicts.map(c => c.id));
             return conflicts;
@@ -7049,14 +7078,24 @@ Return ONLY the JSON.`;
                             updated[section] = conflict.incoming;
                         } else if (section === 'experience') {
                             const roles = _splitDoubleNewline(experienceToText(updated.experience));
-                            const idx   = roles.findIndex(r => _itemKey(r) === _itemKey(conflict.current));
+                            const idx   = roles.findIndex(r => _fuzzyMatch(_entryHeader(r), _entryHeader(conflict.current), 0.6));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
                             updated.experience = roles.join('\n\n');
                         } else if (section === 'education') {
                             const entries = _splitDoubleNewline(updated.education || '');
-                            const idx     = entries.findIndex(e => _itemKey(e) === _itemKey(conflict.current));
+                            const idx     = entries.findIndex(e => _fuzzyMatch(_entryHeader(e), _entryHeader(conflict.current), 0.6));
                             if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
                             updated.education = entries.join('\n\n');
+                        } else if (section === 'skills') {
+                            const list = _splitListItems(updated.skills || '');
+                            const idx  = list.findIndex(s => _fuzzyMatch(s, conflict.current, 0.7));
+                            if (idx >= 0) list[idx] = conflict.incoming; else list.push(conflict.incoming);
+                            updated.skills = list.join(', ');
+                        } else if (section === 'certifications') {
+                            const list = _splitListItems(updated.certifications || '');
+                            const idx  = list.findIndex(c => _fuzzyMatch(c, conflict.current, 0.7));
+                            if (idx >= 0) list[idx] = conflict.incoming; else list.push(conflict.incoming);
+                            updated.certifications = list.join(', ');
                         }
                     }
                     // choice === 'keep': no change needed
