@@ -6966,7 +6966,8 @@ Return ONLY the JSON.`;
 
         function renderConflictCards(conflicts) {
             const CARD_BASE = `border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; background: #fff;`;
-            const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s;`;
+            // Override global button CSS (overflow:hidden, inline-flex, centered) so full text is visible
+            const BTN_BASE  = `border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; cursor: pointer; text-align: left; transition: all 0.15s; overflow: visible; display: block; width: 100%; align-items: flex-start; justify-content: flex-start; font-family: inherit;`;
 
             const cards = conflicts.map(c => `
                     <div id="conflict-card-${c.id}" class="conflict-card" style="${CARD_BASE}">
