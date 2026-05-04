@@ -6864,6 +6864,18 @@ Return ONLY the JSON.`;
         function _entryHeader(text) {
             return text.split('\n').slice(0, 3).join('\n');
         }
+        // Strip date/location noise from a header so matching is driven by
+        // role title and company name only — not shared years, months, or "Remote".
+        function _headerKey(text) {
+            return _entryHeader(text)
+                .toLowerCase()
+                .replace(/\b(19|20)\d{2}\b/g, '')
+                .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/g, '')
+                .replace(/\b(present|current|remote|hybrid|onsite)\b/g, '')
+                .replace(/[^a-z0-9]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
         // Split experience text into individual role blocks.
         // Prefers double-newline separation; falls back to detecting role-header lines
         // (lines containing a 4-digit year AND a pipe separator, typical of resume headers).
@@ -6915,7 +6927,8 @@ Return ONLY the JSON.`;
             return entries.filter(Boolean);
         }
         // Fuzzy word-overlap match. Returns true if shared words / smaller-set words >= threshold.
-        // Use threshold 0.6 for experience/education headers, 0.7 for skills/certs.
+        // Experience/education: pass _headerKey(text) (noise-stripped) at 0.7.
+        // Skills/certs: pass full string at 0.7.
         function _fuzzyMatch(a, b, threshold) {
             const words = s => new Set(
                 s.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
@@ -6938,7 +6951,7 @@ Return ONLY the JSON.`;
             // Experience roles not in existing
             const exRoles  = _splitExperience(experienceToText(ex.experience));
             const incRoles = _splitExperience(experienceToText(inc.experience));
-            const newRoles = incRoles.filter(r => !exRoles.some(e => _fuzzyMatch(_entryHeader(e), _entryHeader(r), 0.6)));
+            const newRoles = incRoles.filter(r => !exRoles.some(e => _fuzzyMatch(_headerKey(e), _headerKey(r), 0.7)));
             if (newRoles.length) {
                 const base = experienceToText(updated.experience || '');
                 updated.experience = base ? base + '\n\n' + newRoles.join('\n\n') : newRoles.join('\n\n');
@@ -6957,7 +6970,7 @@ Return ONLY the JSON.`;
             // Education entries not in existing
             const exEdu  = _splitEducation((ex.education  || '').toString());
             const incEdu = _splitEducation((inc.education || '').toString());
-            const newEdu = incEdu.filter(e => !exEdu.some(x => _fuzzyMatch(_entryHeader(x), _entryHeader(e), 0.6)));
+            const newEdu = incEdu.filter(e => !exEdu.some(x => _fuzzyMatch(_headerKey(x), _headerKey(e), 0.7)));
             if (newEdu.length) {
                 updated.education = updated.education
                     ? updated.education + '\n\n' + newEdu.join('\n\n')
@@ -7005,7 +7018,7 @@ Return ONLY the JSON.`;
             const incRoles = _splitExperience(experienceToText(inc.experience));
             const usedExRoles = new Set();
             incRoles.forEach((role, i) => {
-                const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_entryHeader(r), _entryHeader(role), 0.6));
+                const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_headerKey(r), _headerKey(role), 0.7));
                 if (match && _normText(match) !== _normText(role)) {
                     usedExRoles.add(match);
                     conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
@@ -7029,7 +7042,7 @@ Return ONLY the JSON.`;
             const incEdu = _splitEducation((inc.education || '').toString());
             const usedExEdu = new Set();
             incEdu.forEach((entry, i) => {
-                const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_entryHeader(e), _entryHeader(entry), 0.6));
+                const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_headerKey(e), _headerKey(entry), 0.7));
                 if (match && _normText(match) !== _normText(entry)) {
                     usedExEdu.add(match);
                     conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
@@ -7139,12 +7152,12 @@ Return ONLY the JSON.`;
                             updated[section] = conflict.incoming;
                         } else if (section === 'experience') {
                             const roles = _splitExperience(experienceToText(updated.experience));
-                            const idx   = roles.findIndex(r => _fuzzyMatch(_entryHeader(r), _entryHeader(conflict.current), 0.6));
+                            const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
                             updated.experience = roles.join('\n\n');
                         } else if (section === 'education') {
                             const entries = _splitEducation(updated.education || '');
-                            const idx     = entries.findIndex(e => _fuzzyMatch(_entryHeader(e), _entryHeader(conflict.current), 0.6));
+                            const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
                             if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
                             updated.education = entries.join('\n\n');
                         } else if (section === 'skills') {
