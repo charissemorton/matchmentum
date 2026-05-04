@@ -6764,9 +6764,9 @@ async function getUserSubscription() {
 
 EXTRACTION RULES:
 - Parse name, email, phone, location (city/state), complete LinkedIn URL
-- Experience: Extract all work history with achievements - preserve complete text with metrics
-- Skills: List all skills mentioned
-- Education: Extract degrees and formal education only
+- Experience: Extract all work history with achievements - preserve complete text with metrics. Format each position as "Title | Company | Location | Dates" on the first line, followed by description. Separate each position from the next with a blank line (\\n\\n).
+- Skills: List all skills as a comma-separated list
+- Education: Extract degrees and formal education only. Separate each degree with a blank line (\\n\\n).
 - Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
 - Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
 - Dates: Keep original format from resume
@@ -6864,6 +6864,56 @@ Return ONLY the JSON.`;
         function _entryHeader(text) {
             return text.split('\n').slice(0, 3).join('\n');
         }
+        // Split experience text into individual role blocks.
+        // Prefers double-newline separation; falls back to detecting role-header lines
+        // (lines containing a 4-digit year AND a pipe separator, typical of resume headers).
+        function _splitExperience(text) {
+            if (!text || !text.trim()) return [];
+            const byDouble = text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+            if (byDouble.length > 1) return byDouble;
+            // Fallback: split before lines that look like role headers
+            // Role header: contains a year (19xx/20xx) AND a pipe character
+            const lines = text.split('\n');
+            const entries = [];
+            let current = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const isRoleHeader = i > 0
+                    && /\b(19|20)\d{2}\b/.test(line)
+                    && /\|/.test(line);
+                if (isRoleHeader && current.length > 0) {
+                    entries.push(current.join('\n').trim());
+                    current = [line];
+                } else {
+                    current.push(line);
+                }
+            }
+            if (current.length > 0) entries.push(current.join('\n').trim());
+            return entries.filter(Boolean);
+        }
+        // Split education text — same logic as experience
+        function _splitEducation(text) {
+            if (!text || !text.trim()) return [];
+            const byDouble = text.split(/\n[ \t]*\n/).map(s => s.trim()).filter(Boolean);
+            if (byDouble.length > 1) return byDouble;
+            const lines = text.split('\n');
+            const entries = [];
+            let current = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const isEntryHeader = i > 0
+                    && /\b(19|20)\d{2}\b/.test(line)
+                    && /\|/.test(line);
+                if (isEntryHeader && current.length > 0) {
+                    entries.push(current.join('\n').trim());
+                    current = [line];
+                } else {
+                    current.push(line);
+                }
+            }
+            if (current.length > 0) entries.push(current.join('\n').trim());
+            return entries.filter(Boolean);
+        }
         // Fuzzy word-overlap match. Returns true if shared words / smaller-set words >= threshold.
         // Use threshold 0.6 for experience/education headers, 0.7 for skills/certs.
         function _fuzzyMatch(a, b, threshold) {
@@ -6886,8 +6936,8 @@ Return ONLY the JSON.`;
             const updated = { ...ex };
 
             // Experience roles not in existing
-            const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
-            const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
+            const exRoles  = _splitExperience(experienceToText(ex.experience));
+            const incRoles = _splitExperience(experienceToText(inc.experience));
             const newRoles = incRoles.filter(r => !exRoles.some(e => _fuzzyMatch(_entryHeader(e), _entryHeader(r), 0.6)));
             if (newRoles.length) {
                 const base = experienceToText(updated.experience || '');
@@ -6905,8 +6955,8 @@ Return ONLY the JSON.`;
             }
 
             // Education entries not in existing
-            const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
-            const incEdu = _splitDoubleNewline((inc.education || '').toString());
+            const exEdu  = _splitEducation((ex.education  || '').toString());
+            const incEdu = _splitEducation((inc.education || '').toString());
             const newEdu = incEdu.filter(e => !exEdu.some(x => _fuzzyMatch(_entryHeader(x), _entryHeader(e), 0.6)));
             if (newEdu.length) {
                 updated.education = updated.education
@@ -6951,8 +7001,8 @@ Return ONLY the JSON.`;
 
             // 2. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
             // Track matched existing items so each existing entry only maps to one incoming entry
-            const exRoles  = _splitDoubleNewline(experienceToText(ex.experience));
-            const incRoles = _splitDoubleNewline(experienceToText(inc.experience));
+            const exRoles  = _splitExperience(experienceToText(ex.experience));
+            const incRoles = _splitExperience(experienceToText(inc.experience));
             const usedExRoles = new Set();
             incRoles.forEach((role, i) => {
                 const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_entryHeader(r), _entryHeader(role), 0.6));
@@ -6975,8 +7025,8 @@ Return ONLY the JSON.`;
             });
 
             // 4. Education — fuzzy match on first 2-3 lines; conflict card if full text differs
-            const exEdu  = _splitDoubleNewline((ex.education  || '').toString());
-            const incEdu = _splitDoubleNewline((inc.education || '').toString());
+            const exEdu  = _splitEducation((ex.education  || '').toString());
+            const incEdu = _splitEducation((inc.education || '').toString());
             const usedExEdu = new Set();
             incEdu.forEach((entry, i) => {
                 const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_entryHeader(e), _entryHeader(entry), 0.6));
@@ -7088,12 +7138,12 @@ Return ONLY the JSON.`;
                         if (['name','email','phone','location','linkedin'].includes(section)) {
                             updated[section] = conflict.incoming;
                         } else if (section === 'experience') {
-                            const roles = _splitDoubleNewline(experienceToText(updated.experience));
+                            const roles = _splitExperience(experienceToText(updated.experience));
                             const idx   = roles.findIndex(r => _fuzzyMatch(_entryHeader(r), _entryHeader(conflict.current), 0.6));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
                             updated.experience = roles.join('\n\n');
                         } else if (section === 'education') {
-                            const entries = _splitDoubleNewline(updated.education || '');
+                            const entries = _splitEducation(updated.education || '');
                             const idx     = entries.findIndex(e => _fuzzyMatch(_entryHeader(e), _entryHeader(conflict.current), 0.6));
                             if (idx >= 0) entries[idx] = conflict.incoming; else entries.push(conflict.incoming);
                             updated.education = entries.join('\n\n');
@@ -7799,9 +7849,9 @@ Return ONLY this JSON (no markdown, no fences):
 
 EXTRACTION RULES:
 - Parse name, email, phone, location (city/state), complete LinkedIn URL
-- Experience: Extract all work history with achievements - preserve complete text with metrics
-- Skills: List all skills mentioned
-- Education: Extract degrees and formal education only
+- Experience: Extract all work history with achievements - preserve complete text with metrics. Format each position as "Title | Company | Location | Dates" on the first line, followed by the description. Separate each position from the next with a blank line (\\n\\n).
+- Skills: List all skills as a comma-separated list
+- Education: Extract degrees and formal education only. Separate each degree with a blank line (\\n\\n).
 - Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
 - Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
 - Dates: Keep original format from resume
