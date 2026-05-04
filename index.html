@@ -7018,50 +7018,51 @@ Return ONLY the JSON.`;
 
             // Contact fields are auto-resolved in autoMergeNewItems (most complete wins) — no conflict cards
 
-            // 1. Experience — fuzzy match on first 2-3 lines; conflict card if full text differs
-            // Track matched existing items so each existing entry only maps to one incoming entry
+            // 1. Experience — identity: header fuzzy-match at 0.7; conflict: content fuzzy-match below 0.92
+            // Two-stage: same role identity (title+company) but substantially different description → card.
+            // Minor differences (punctuation, trivial rewording) won't drop below 0.92 — auto-merged silently.
             const exRoles  = _splitExperience(experienceToText(ex.experience));
             const incRoles = _splitExperience(experienceToText(inc.experience));
             const usedExRoles = new Set();
             incRoles.forEach((role, i) => {
                 const match = exRoles.find(r => !usedExRoles.has(r) && _fuzzyMatch(_headerKey(r), _headerKey(role), 0.7));
-                if (match && _normText(match) !== _normText(role)) {
+                if (match && !_fuzzyMatch(match, role, 0.92)) {
                     usedExRoles.add(match);
                     conflicts.push({ id: `exp_chg_${i}`, label: 'Work Experience', section: 'experience', type: 'conflict', current: match, incoming: role });
                 }
             });
 
-            // 3. Skills — fuzzy match on full string; conflict card if text differs
+            // 3. Skills — identity + content both via fuzzy match; card only if substantially different
             const exSkills  = _splitListItems((ex.skills  || '').toString());
             const incSkills = _splitListItems((inc.skills || '').toString());
             const usedExSkills = new Set();
             incSkills.forEach((skill, i) => {
                 const match = exSkills.find(s => !usedExSkills.has(s) && _fuzzyMatch(s, skill, 0.7));
-                if (match && _normText(match) !== _normText(skill)) {
+                if (match && !_fuzzyMatch(match, skill, 0.92)) {
                     usedExSkills.add(match);
                     conflicts.push({ id: `skill_chg_${i}`, label: 'Skill', section: 'skills', type: 'conflict', current: match, incoming: skill });
                 }
             });
 
-            // 4. Education — fuzzy match on first 2-3 lines; conflict card if full text differs
+            // 4. Education — same two-stage approach as experience
             const exEdu  = _splitEducation((ex.education  || '').toString());
             const incEdu = _splitEducation((inc.education || '').toString());
             const usedExEdu = new Set();
             incEdu.forEach((entry, i) => {
                 const match = exEdu.find(e => !usedExEdu.has(e) && _fuzzyMatch(_headerKey(e), _headerKey(entry), 0.7));
-                if (match && _normText(match) !== _normText(entry)) {
+                if (match && !_fuzzyMatch(match, entry, 0.92)) {
                     usedExEdu.add(match);
                     conflicts.push({ id: `edu_chg_${i}`, label: 'Education', section: 'education', type: 'conflict', current: match, incoming: entry });
                 }
             });
 
-            // 5. Certifications — fuzzy match on full string; conflict card if text differs
+            // 5. Certifications — same two-stage approach as skills
             const exCerts  = _splitListItems((ex.certifications  || '').toString());
             const incCerts = _splitListItems((inc.certifications || '').toString());
             const usedExCerts = new Set();
             incCerts.forEach((cert, i) => {
                 const match = exCerts.find(c => !usedExCerts.has(c) && _fuzzyMatch(c, cert, 0.7));
-                if (match && _normText(match) !== _normText(cert)) {
+                if (match && !_fuzzyMatch(match, cert, 0.92)) {
                     usedExCerts.add(match);
                     conflicts.push({ id: `cert_chg_${i}`, label: 'Certification', section: 'certifications', type: 'conflict', current: match, incoming: cert });
                 }
