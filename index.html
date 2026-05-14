@@ -7721,11 +7721,11 @@ Return ONLY the JSON.`;
                 phone: phone,
                 location: location,
                 linkedin: linkedin,
-                experience: experience,
-                skills: skills,
+                experience: parseExperienceText(experience),
+                skills: parseSkillsText(skills),
                 education: education,
-                certifications: certifications,
-                projects: projects,
+                certifications: parseCertificationsText(certifications),
+                projects: parseProjectsText(projects),
                 backgroundContext: profileData?.backgroundContext || ''
             };
 
@@ -8248,7 +8248,7 @@ Return ONLY the JSON.`;
             const location = profileData.location || '';
             const linkedin = profileData.linkedin || '';
             const experienceText = experienceToText(profileData.experience);
-            const skillsText = profileData.skills || '';
+            const skillsText = flattenSkills(profileData.skills);
             const educationText = profileData.education || '';
             const certificationsText = profileData.certifications || '';
             const projectsText = profileData.projects || '';
@@ -8361,11 +8361,11 @@ Return ONLY the JSON.`;
                 phone: phone,
                 location: location,
                 linkedin: linkedin,
-                experience: experience,
-                skills: skills,
-                projects: projects,
+                experience: parseExperienceText(experience),
+                skills: parseSkillsText(skills),
+                projects: parseProjectsText(projects),
                 education: education,
-                certifications: certifications,
+                certifications: parseCertificationsText(certifications),
                 backgroundContext: backgroundContext
             };
             
