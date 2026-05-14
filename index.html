@@ -6820,6 +6820,26 @@ Return ONLY the JSON.`;
                 const conflicts   = detectUploadConflicts(autoMergedR, tempProfile);
 
                 if (conflicts.length === 0) {
+                    // Preserve any unsaved edits the user made in the review form
+                    // by merging them into the auto-merged result before assigning.
+                    // Only applies if the review form is currently rendered (review-name exists).
+                    const reviewName = document.getElementById('review-name');
+                    if (reviewName) {
+                        autoMergedR = {
+                            ...autoMergedR,
+                            name:              document.getElementById('review-name')?.value ?? autoMergedR.name,
+                            email:             document.getElementById('review-email')?.value ?? autoMergedR.email,
+                            phone:             document.getElementById('review-phone')?.value ?? autoMergedR.phone,
+                            location:          document.getElementById('review-location')?.value ?? autoMergedR.location,
+                            linkedin:          document.getElementById('review-linkedin')?.value ?? autoMergedR.linkedin,
+                            experience:        parseExperienceText(document.getElementById('review-experience')?.value ?? ''),
+                            skills:            parseSkillsText(document.getElementById('review-skills')?.value ?? ''),
+                            projects:          parseProjectsText(document.getElementById('review-projects')?.value ?? ''),
+                            education:         document.getElementById('review-education')?.value ?? autoMergedR.education,
+                            certifications:    parseCertificationsText(document.getElementById('review-certifications')?.value ?? ''),
+                            backgroundContext: document.getElementById('review-background-context')?.value ?? autoMergedR.backgroundContext
+                        };
+                    }
                     // No conflicts — use auto-merged result and save immediately
                     profileData = autoMergedR;
                     await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
