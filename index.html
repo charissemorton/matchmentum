@@ -8773,13 +8773,12 @@ Format your response in markdown with contact header first, then summary, then c
 
         // CHUNK 2: Recent Professional Experience
         async function generateRecentExperience(experience, jobInfo) {
-            const experienceText = typeof experience === 'string' ? experience : JSON.stringify(experience, null, 2);
-            const recentExperience = experienceText.substring(0, 3000);
+            const experienceText = JSON.stringify(experience, null, 2);
             
             const prompt = `Generate professional experience section for RECENT ROLES ONLY (last 2-3 jobs).
 
 RECENT WORK HISTORY:
-${recentExperience}
+${experienceText}
 
 TARGET JOB: ${jobInfo.title} at ${jobInfo.company}
 KEY REQUIREMENTS: ${jobInfo.keyRequirements.join(', ')}
@@ -8833,17 +8832,15 @@ Format your response in markdown. Use ## PROFESSIONAL EXPERIENCE as header. Do n
 
         // CHUNK 3: Older Professional Experience
         async function generateOlderExperience(experience, jobInfo) {
-            const experienceText = typeof experience === 'string' ? experience : JSON.stringify(experience, null, 2);
-            const olderExperience = experienceText.substring(3000, 6000);
-            
-            if (olderExperience.length < 100) {
+            if (!experience || experience.length === 0) {
                 return '';
             }
+            const experienceText = JSON.stringify(experience, null, 2);
             
             const prompt = `Generate professional experience for OLDER ROLES (beyond most recent 2-3).
 
 OLDER WORK HISTORY:
-${olderExperience}
+${experienceText}
 
 TARGET JOB: ${jobInfo.title}
 
@@ -9088,17 +9085,28 @@ Return ONLY valid JSON:
                     jobInfo
                 );
                 
+                // CHUNK 2 & 3: Split experience by date (10-year window) then by recency
+                const tenYearsAgo = new Date();
+                tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+                const filteredExperience = (profileForResume.experience || []).filter(role => {
+                    if (!role.endDate) return true; // current role
+                    const end = new Date(role.endDate);
+                    return !isNaN(end) && end >= tenYearsAgo;
+                });
+                const recentRoles = filteredExperience.slice(0, 2);
+                const olderRoles = filteredExperience.slice(2);
+
                 // CHUNK 2: Recent Experience
                 updateResumeProgress('Generating recent work experience...', 35);
                 const recentExperienceSection = await generateRecentExperience(
-                    profileForResume.experience,
+                    recentRoles,
                     jobInfo
                 );
                 
                 // CHUNK 3: Older Experience
                 updateResumeProgress('Generating work history...', 55);
                 const olderExperienceSection = await generateOlderExperience(
-                    profileForResume.experience,
+                    olderRoles,
                     jobInfo
                 );
                 
