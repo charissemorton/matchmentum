@@ -8870,7 +8870,7 @@ CRITICAL REQUIREMENTS:
 4. BANNED WORDS:
    - NO "spearheaded", "orchestrated", "facilitated", "drove", "championed"
 
-Format your response in markdown. If no older experience exists in the provided text, return empty string. Do not include the word "markdown" in your response.${profileData.backgroundContext ? `\n\nBACKGROUND CONTEXT (candidate-confirmed):\nThe candidate has provided the following context about their experience. It does not appear on their resume but is factually accurate and has been verified by the candidate. Use it to inform this section where relevant — do not fabricate beyond what is stated.\n${profileData.backgroundContext}` : ''}`;
+Format your response in markdown. Do not include the word "markdown" in your response. CRITICAL: Your only two valid responses are (1) properly formatted resume markdown, or (2) a completely empty string. If no older experience exists in the provided text, return exactly an empty string — nothing else. No explanation. No commentary. No description of what is or is not in the work history. If you cannot generate resume content from the text provided, return empty string and stop.${profileData.backgroundContext ? `\n\nBACKGROUND CONTEXT (candidate-confirmed):\nThe candidate has provided the following context about their experience. It does not appear on their resume but is factually accurate and has been verified by the candidate. Use it to inform this section where relevant — do not fabricate beyond what is stated.\n${profileData.backgroundContext}` : ''}`;
 
 
             const response = await callClaudeAPI(prompt, 'Generate older experience.');
