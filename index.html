@@ -5733,6 +5733,7 @@ async function getUserSubscription() {
         let currentJobDescription = null;
         let currentAnalysis = null;
         let _preGapScore = null; // score before a gap-context re-analysis, for messaging
+        let currentSessionGapContext = false; // true only after gap modal submitted in current analysis session
         let _pendingIncomingProfile   = null; // incoming profile awaiting conflict resolution
         let _pendingAutoMergedProfile = null; // base profile with new items already merged in
         let _pendingConflicts = [];           // array of {id, label, section, type, current?, incoming}
@@ -8036,6 +8037,11 @@ Return ONLY the JSON.`;
 
         async function _proceedWithAnalysis(jobDesc, isGapReanalysis = false) {
 
+            // Reset session gap context flag for fresh analyses only
+            if (!isGapReanalysis) {
+                currentSessionGapContext = false;
+            }
+
             // Check if it's a URL
             if (jobDesc.startsWith('http://') || jobDesc.startsWith('https://') || jobDesc.startsWith('www.')) {
                 const resultDiv = document.getElementById('analysis-result');
@@ -8306,7 +8312,7 @@ Return your analysis in this JSON format:
                             These may already be part of your experience. If so, you can help us include them in your resume.
                         </p>
                         <div id="gap-context-area">
-                            ${profileData.backgroundContext ? `
+                            ${currentSessionGapContext ? `
                                 <span id="gap-pill" style="display:inline-flex; align-items:center; gap:6px; background:#FAEEDA; color:#633806; border:1px solid #EF9F27; border-radius:20px; padding:5px 14px; font-size:13px; font-weight:500;">
                                     ✓ Background Context updated
                                 </span>` : `
@@ -8558,6 +8564,7 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
                     profileData.backgroundContext = profileData.backgroundContext
                         ? profileData.backgroundContext + '\n\n' + answersText
                         : answersText;
+                    currentSessionGapContext = true;
                 }
 
                 await saveProfileToCloud(profileData);
