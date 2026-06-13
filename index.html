@@ -9088,7 +9088,8 @@ Return ONLY valid JSON:
                 // CHUNK 2 & 3: Split experience by date (10-year window) then by recency
                 const tenYearsAgo = new Date();
                 tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-                const filteredExperience = (profileForResume.experience || []).filter(role => {
+                const experienceArray = Array.isArray(profileForResume.experience) ? profileForResume.experience : [];
+                const filteredExperience = experienceArray.filter(role => {
                     if (!role.endDate) return true; // current role
                     const end = new Date(role.endDate);
                     return !isNaN(end) && end >= tenYearsAgo;
