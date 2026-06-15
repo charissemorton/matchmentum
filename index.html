@@ -8864,14 +8864,20 @@ CRITICAL REQUIREMENTS:
 
 2. BULLET COUNT:
    - 2-3 bullets per role maximum
-   - Focus on relevant skills/experience for target job
    - Be concise but specific
 
-3. FORMAT:
+3. EACH BULLET MUST BE SUBSTANTIVE:
+   - Describe a specific accomplishment, responsibility, or skill drawn from the work history — NOT a generic duty that anyone with this job title would list
+   - Name the actual tools, systems, platforms, or domains mentioned in the work history
+   - Start with an action verb, and vary the verb across bullets
+   - Include quantified impact ONLY if the metric actually appears in the work history — never estimate or invent one
+   - A bullet that restates the basic function of the job ("Responsible for daily operations", "Performed routine reviews") adds nothing — replace it with a specific detail or omit it
+
+4. FORMAT:
    - Include: Company Name | Location | Title | Dates (exact from work history)
    - Use only information explicitly provided
 
-4. BANNED WORDS:
+5. BANNED WORDS:
    - NO "spearheaded", "orchestrated", "facilitated", "drove", "championed"
 
 Format your response in markdown. Do not include the word "markdown" in your response. CRITICAL: Your only two valid responses are (1) properly formatted resume markdown, or (2) a completely empty string. If no older experience exists in the provided text, return exactly an empty string — nothing else. No explanation. No commentary. No description of what is or is not in the work history. If you cannot generate resume content from the text provided, return empty string and stop.${profileData.backgroundContext ? `\n\nBACKGROUND CONTEXT (candidate-confirmed):\nThe candidate has provided the following context about their experience. It does not appear on their resume but is factually accurate and has been verified by the candidate. Use it to inform this section where relevant — do not fabricate beyond what is stated.\n${profileData.backgroundContext}` : ''}`;
