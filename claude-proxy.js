@@ -28,7 +28,6 @@ exports.handler = async (event, context) => {
 
   // Get API key from environment variable (set in Netlify dashboard)
   const apiKey = process.env.ANTHROPIC_API_KEY;
-
   if (!apiKey) {
     return {
       statusCode: 500,
@@ -42,10 +41,10 @@ exports.handler = async (event, context) => {
 
   try {
     // Parse the request body
-    const { systemPrompt, userMessage, maxTokens = 4000, temperature = 0 } = JSON.parse(event.body);
+    const { systemPrompt, userMessage, maxTokens = 4000 } = JSON.parse(event.body);
 
-    // Make request to Anthropic API (uses built-in fetch on Node 18+)
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Make streaming request to Anthropic API
+    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,7 +54,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: maxTokens,
-        temperature: temperature,
+        stream: true,
         system: systemPrompt,
         messages: [
           {
@@ -66,18 +65,38 @@ exports.handler = async (event, context) => {
       })
     });
 
-    const data = await response.json();
+    if (!anthropicResponse.ok) {
+      const errorData = await anthropicResponse.json();
+      return {
+        statusCode: anthropicResponse.status,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(errorData)
+      };
+    }
 
-    // Return the response with CORS headers
+    // Read the full stream and pass it through as SSE
+    const reader = anthropicResponse.body.getReader();
+    const decoder = new TextDecoder();
+    let streamBody = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      streamBody += decoder.decode(value, { stream: true });
+    }
+
     return {
-      statusCode: response.ok ? 200 : response.status,
+      statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Content-Type': 'application/json'
+        'Content-Type': 'text/event-stream'
       },
-      body: JSON.stringify(data)
+      body: streamBody
     };
   } catch (error) {
     console.error('Error in claude-proxy function:', error);
