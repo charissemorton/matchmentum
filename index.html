@@ -5657,7 +5657,7 @@ async function getUserSubscription() {
             
             // Create abort controller for timeout
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+            const timeout = setTimeout(() => controller.abort(), 120000); // 120 second timeout for streaming
             
             try {
                 const response = await fetch(netlifyFunctionUrl, {
@@ -5674,13 +5674,11 @@ async function getUserSubscription() {
                     signal: controller.signal
                 });
 
-                clearTimeout(timeout);
-
                 debugLog('Response status:', response.status);
                 debugLog('Response ok:', response.ok);
 
                 if (!response.ok) {
-                    // Get more details about the error
+                    clearTimeout(timeout);
                     let errorDetails = '';
                     try {
                         const errorData = await response.json();
@@ -5696,14 +5694,47 @@ async function getUserSubscription() {
                 // Record successful call for rate limiting
                 rateLimiter.recordCall();
 
-                const data = await response.json();
-                const rawText = data.content[0].text;
-                return stripMarkdownCodeFences(rawText);
+                // Read SSE stream and accumulate text content
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep incomplete last line in buffer
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+                                fullText += parsed.delta.text;
+                            }
+                        } catch (e) {
+                            // ignore unparseable lines
+                        }
+                    }
+                }
+
+                clearTimeout(timeout);
+
+                if (!fullText) {
+                    throw new Error('No content received from API');
+                }
+
+                return stripMarkdownCodeFences(fullText);
             } catch (error) {
                 clearTimeout(timeout);
                 
                 if (error.name === 'AbortError') {
-                    throw new Error('Request timed out after 45 seconds. Please try again.');
+                    throw new Error('Request timed out. Please try again.');
                 }
                 throw error;
             }
