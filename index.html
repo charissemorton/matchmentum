@@ -4496,8 +4496,8 @@ async function getUserSubscription() {
                     return null;
                 }
 
-                // Compute trial state for free-tier users
-                if (data && data.tier === 'free' && data.trial_expires_at) {
+                // Compute access expiry state (any tier with a trial_expires_at)
+                if (data && data.trial_expires_at) {
                     const now = new Date();
                     const expires = new Date(data.trial_expires_at);
                     data._trialExpired = expires < now;
@@ -4678,7 +4678,7 @@ async function getUserSubscription() {
             
             if (reason === 'trial_expired') {
                 title = "Your Trial Has Ended";
-                message = `Your 7-day free trial has ended. Upgrade to keep building tailored resumes and cover letters — your profile and history are saved and ready to go.`;
+                message = `Your free trial has ended. Upgrade to keep building tailored resumes and cover letters — your profile and history are saved and ready to go.`;
             } else if (reason === 'not_available') {
                 title = "You're Building Momentum";
                 message = notAvailableMessages[actionType] || `Your <strong>${tier.charAt(0).toUpperCase() + tier.slice(1)}</strong> plan doesn't include ${actionLabel}. Keep the momentum — upgrade to unlock this feature.`;
@@ -4688,7 +4688,7 @@ async function getUserSubscription() {
             }
             
             // Build upgrade options based on current tier
-            if (tier === 'free') {
+            if (tier === 'free' || tier === 'beta') {
                 upgradeOptions = `
                     <div class="upgrade-option" onclick="startCheckout('lite')">
                         <div class="upgrade-option-header">
