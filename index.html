@@ -7521,7 +7521,7 @@ Return ONLY the JSON.`;
                             const roles = _splitExperience(experienceToText(updated.experience));
                             const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
-                            updated.experience = roles.join('\n\n');
+                            updated.experience = parseExperienceText(roles.join('\n\n'));
                         } else if (section === 'education') {
                             const entries = _splitEducation(updated.education || '');
                             const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
@@ -7550,7 +7550,7 @@ Return ONLY the JSON.`;
                                 : conflict.incoming;
                             const combined = conflict.current + '\n' + incBody;
                             if (idx >= 0) roles[idx] = combined; else roles.push(combined);
-                            updated.experience = roles.join('\n\n');
+                            updated.experience = parseExperienceText(roles.join('\n\n'));
                         } else if (section === 'education') {
                             const entries = _splitEducation(updated.education || '');
                             const idx     = entries.findIndex(e => _fuzzyMatch(_headerKey(e), _headerKey(conflict.current), 0.7));
@@ -8349,43 +8349,87 @@ Return ONLY the JSON.`;
             return text.trim();
         }
 
+        // ---- Date-range helpers ----
+        const _EXP_MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        const _EXP_DATE_TOKEN = '(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?\\s+)?(?:19|20)\\d{2}|\\d{1,2}\\/(?:19|20)\\d{2}|present|current|now';
+        const _EXP_DATE_RANGE_RE = new RegExp('^\\s*(' + _EXP_DATE_TOKEN + ')\\s*(?:[–—-]+|to)\\s*(' + _EXP_DATE_TOKEN + ')\\s*$', 'i');
+        function _parseDateRangeLine(line) {
+            const m = (line || '').match(_EXP_DATE_RANGE_RE);
+            return m ? { startDate: m[1].trim(), endDate: m[2].trim() } : null;
+        }
+        // Parse "April 2026" / "2026" / "04/2026" / "Present" without relying on new Date(string),
+        // which Safari can't read for "Month YYYY". Present/blank end → Infinity (current role).
+        function _expDateValue(s, isEnd) {
+            const t = (s || '').trim().toLowerCase();
+            if (!t) return isEnd ? Infinity : NaN;
+            if (/^(present|current|now)$/.test(t)) return Infinity;
+            let m = t.match(/^(\d{1,2})\/((?:19|20)\d{2})$/);
+            if (m) return new Date(+m[2], +m[1] - 1, 1).getTime();
+            m = t.match(/^([a-z]+)\.?\s+((?:19|20)\d{2})$/);
+            if (m) { const i = _EXP_MONTHS.indexOf(m[1].slice(0, 3)); if (i >= 0) return new Date(+m[2], i, 1).getTime(); }
+            m = t.match(/^((?:19|20)\d{2})$/);
+            if (m) return new Date(+m[1], 0, 1).getTime();
+            return NaN;
+        }
+
         // Try to read a block's first line as a role header. Returns
         // {title, company, startDate, endDate} or null if it isn't one.
-        function _matchExperienceHeader(header) {
-            // "Title | Company | Location | Dates" (parseResumeText's AI output
-            // format — see its system prompt). Location is optional (3 or 4 pipe
-            // segments); the last segment is always the dates.
+        // nextLine lets an "at" header with no dates on it qualify when the dates sit on line 2
+        // (that's how experienceToText writes them).
+        function _matchExperienceHeader(header, nextLine) {
+            header = (header || '').trim();
+            if (!header || /^[•▪◦·*\-–]\s/.test(header)) return null; // bullet line, never a header
+            // "Title | Company | Location | Dates" (parseResumeText's AI output format).
+            // Only counts when the last segment actually holds a year or Present, so a pipe-separated
+            // skills line isn't mistaken for a role.
             const pipeParts = header.split(/\s*\|\s*/).map(p => p.trim()).filter(Boolean);
-            if (pipeParts.length >= 3) {
+            if (pipeParts.length >= 3 && /\b(19|20)\d{2}\b|present|current/i.test(pipeParts[pipeParts.length - 1])) {
                 const datesPart = pipeParts[pipeParts.length - 1];
-                const dateMatch = datesPart.match(/^(.+?)\s*[–\-]\s*(.+)$/);
+                const range = _parseDateRangeLine(datesPart);
+                const dateMatch = range ? null : datesPart.match(/^(.+?)\s*[–\-]\s*(.+)$/);
                 return {
                     title: pipeParts[0],
                     company: pipeParts[1],
-                    startDate: dateMatch ? dateMatch[1].trim() : datesPart,
-                    endDate: dateMatch ? dateMatch[2].trim() : ''
+                    startDate: range ? range.startDate : (dateMatch ? dateMatch[1].trim() : datesPart),
+                    endDate: range ? range.endDate : (dateMatch ? dateMatch[2].trim() : '')
                 };
             }
-            // "Title at Company startDate – endDate" (experienceToText output format)
+            // "Title — Company · Dates"
+            const dashMatch = header.match(/^(.+?)\s+[—–]\s+(.+?)\s+[·•]\s+(.+)$/);
+            if (dashMatch && _parseDateRangeLine(dashMatch[3])) {
+                const r = _parseDateRangeLine(dashMatch[3]);
+                return { title: dashMatch[1].trim(), company: dashMatch[2].trim(), startDate: r.startDate, endDate: r.endDate };
+            }
+            // "Title at Company [startDate – endDate]" (experienceToText output format).
+            // A sentence that merely contains " at " is not a header: it needs dates on this line or
+            // the next, or must be short and not end like a sentence.
             const atMatch = header.match(/^(.+?)\s+at\s+(.+?)(?:\s+(.+?)\s+[–\-]\s+(.+?))?$/);
             if (atMatch) {
-                return {
-                    title: atMatch[1].trim(),
-                    company: atMatch[2].trim(),
-                    startDate: atMatch[3]?.trim() || '',
-                    endDate: atMatch[4]?.trim() || ''
-                };
+                // "(2023 - 2026)" style dates anywhere on the line also count.
+                const paren = header.match(new RegExp('\\((' + _EXP_DATE_TOKEN + ')\\s*(?:[–—-]+|to)\\s*(' + _EXP_DATE_TOKEN + ')\\)', 'i'));
+                const lineDates = !!(atMatch[3] && atMatch[4] && _parseDateRangeLine(atMatch[3] + ' – ' + atMatch[4]));
+                const hasDates = lineDates || !!paren || !!_parseDateRangeLine(nextLine);
+                const endsLikeSentence = /[.!?]$/.test(header) && !/\b(inc|co|corp|ltd|llc)\.$/i.test(header);
+                const looksLikeHeader = header.length <= 100 && !endsLikeSentence && /^[A-Z0-9]/.test(atMatch[2].trim());
+                if (hasDates || looksLikeHeader) {
+                    const strip = t => t.replace(paren ? paren[0] : '\u0000', '').replace(/\s{2,}/g, ' ').trim();
+                    if (lineDates) {
+                        return { title: atMatch[1].trim(), company: atMatch[2].trim(), startDate: atMatch[3].trim(), endDate: atMatch[4].trim() };
+                    }
+                    // Dates weren't on the line as a trailing range, so the lazy regex may have
+                    // split company text into the date groups. Use the whole remainder as company.
+                    const company = header.slice(header.indexOf(atMatch[1]) + atMatch[1].length).replace(/^\s+at\s+/, '');
+                    return {
+                        title: strip(atMatch[1]),
+                        company: strip(company),
+                        startDate: paren ? paren[1].trim() : '',
+                        endDate: paren ? paren[2].trim() : ''
+                    };
+                }
             }
             return null;
         }
 
-        // Convert experience textarea text → structured experience array.
-        // Inverse of experienceToText(). Splits on blank lines into candidate
-        // blocks, but only blocks whose first line matches a role header start
-        // a new role — any block without a header (e.g. a narrative paragraph
-        // separated from its role's bullets by a blank line) is folded into the
-        // description of the role above it, instead of becoming its own
-        // blank-title/company entry.
         function parseExperienceText(text) {
             if (!text) return [];
             if (Array.isArray(text)) return text;
@@ -8394,21 +8438,40 @@ Return ONLY the JSON.`;
             for (const block of blocks) {
                 const lines = block.split('\n');
                 const header = lines[0] || '';
-                const rest = lines.slice(1).join('\n').trim();
-                const match = _matchExperienceHeader(header);
+                const match = _matchExperienceHeader(header, lines[1]);
                 if (match) {
-                    roles.push({ ...match, description: rest });
+                    let bodyLines = lines.slice(1);
+                    // Dates on line 2 (experienceToText's layout) belong in the date fields.
+                    if (!match.startDate && !match.endDate) {
+                        const r = _parseDateRangeLine(bodyLines[0]);
+                        if (r) { match.startDate = r.startDate; match.endDate = r.endDate; bodyLines = bodyLines.slice(1); }
+                    }
+                    roles.push({ ...match, description: bodyLines.join('\n').trim() });
                 } else if (roles.length) {
-                    // No header on this block — it's a continuation of the
-                    // previous role's description, not a new role.
                     const prev = roles[roles.length - 1];
                     prev.description = prev.description ? prev.description + '\n\n' + block : block;
                 } else {
-                    // No preceding role to attach to — keep it, unparsed.
                     roles.push({ title: '', company: '', startDate: '', endDate: '', description: block });
                 }
             }
             return roles;
+        }
+
+        // Resume generation: always work from a clean, date-ordered array.
+        // Re-running the stored roles through the parser repairs profiles damaged by the old
+        // round trip (dates stranded in descriptions, sentence fragments saved as roles).
+        // Plain-text (string) experience is not handled here.
+        function _normalizeExperienceForResume(experience) {
+            if (!Array.isArray(experience)) return [];
+            const roles = parseExperienceText(experienceToText(experience))
+                .filter(r => r.title || r.company || (r.description || '').trim());
+            const isDated = r => !isNaN(_expDateValue(r.startDate, false)) || isFinite(_expDateValue(r.endDate, true));
+            const allDated = roles.length > 0 && roles.every(isDated);
+            if (!allDated) return roles; // can't order reliably — keep the user's order
+            return roles
+                .map((r, i) => ({ r, i, end: _expDateValue(r.endDate, true), start: _expDateValue(r.startDate, false) }))
+                .sort((a, b) => (b.end - a.end) || ((b.start || 0) - (a.start || 0)) || (a.i - b.i))
+                .map(x => x.r);
         }
 
         function experienceToText(experience) {
@@ -9953,11 +10016,11 @@ Return ONLY valid JSON:
                 // CHUNK 2 & 3: Split experience by date (10-year window) then by recency
                 const tenYearsAgo = new Date();
                 tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-                const experienceArray = Array.isArray(profileForResume.experience) ? profileForResume.experience : [];
+                // Repair and date-order roles before slotting: list position alone can't be trusted.
+                const experienceArray = _normalizeExperienceForResume(profileForResume.experience);
                 const filteredExperience = experienceArray.filter(role => {
-                    if (!role.endDate) return true; // current role
-                    const end = new Date(role.endDate);
-                    return isNaN(end) ? true : end >= tenYearsAgo; // unreadable date (e.g. "Present") → keep, never drop silently
+                    const end = _expDateValue(role.endDate, true); // blank/Present → Infinity
+                    return isFinite(end) ? end >= tenYearsAgo.getTime() : true; // current or unreadable → keep, never drop silently
                 });
                 const recentRoles = filteredExperience.slice(0, 2);
                 const olderRoles = filteredExperience.slice(2);
