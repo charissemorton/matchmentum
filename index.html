@@ -4459,7 +4459,18 @@
          * Creates a free-tier row if none exists
          * @returns {Promise<Object|null>} Subscription data with usage counts
          */
-async function getUserSubscription() {
+// Concurrent callers share one in-flight request, so a first login creates one
+        // subscription row instead of several racing inserts (409 conflicts).
+        let _subscriptionRequest = null;
+        function getUserSubscription() {
+            if (!_subscriptionRequest) {
+                _subscriptionRequest = _fetchOrCreateSubscription()
+                    .finally(() => { _subscriptionRequest = null; });
+            }
+            return _subscriptionRequest;
+        }
+
+        async function _fetchOrCreateSubscription() {
             try {
                 const supabase = getSupabase();
                 const { data: { user } } = await supabase.auth.getUser();
@@ -4467,7 +4478,7 @@ async function getUserSubscription() {
                 if (!user) return null;
                 
                 // Try to fetch existing subscription
-                const { data, error } = await supabase
+                let { data, error } = await supabase
                     .from('subscriptions')
                     .select('*')
                     .eq('user_id', user.id)
@@ -4496,13 +4507,21 @@ async function getUserSubscription() {
                         .select()
                         .single();
                     
-                    if (insertError) {
+                    if (insertError && insertError.code === '23505') {
+                        // Row was created by another tab or request in the meantime: use it
+                        ({ data, error } = await supabase
+                            .from('subscriptions')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .single());
+                    } else if (insertError) {
                         console.error('Error creating trial subscription:', insertError);
                         return null;
+                    } else {
+                        debugLog('Trial subscription created');
+                        data = newSub;
+                        error = null;
                     }
-                    
-                    debugLog('Trial subscription created');
-                    return newSub;
                 }
                 
                 if (error) {
