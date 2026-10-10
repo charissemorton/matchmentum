@@ -4496,8 +4496,8 @@ async function getUserSubscription() {
                     return null;
                 }
 
-                // Compute access expiry state (any tier with a trial_expires_at)
-                if (data && data.trial_expires_at) {
+                // Compute access expiry state (free and beta only; paid tiers never expire here)
+                if (data && data.trial_expires_at && !['lite', 'pro'].includes(data.tier)) {
                     const now = new Date();
                     const expires = new Date(data.trial_expires_at);
                     data._trialExpired = expires < now;
@@ -4676,7 +4676,10 @@ async function getUserSubscription() {
             let message = '';
             let upgradeOptions = '';
             
-            if (reason === 'trial_expired') {
+            if (reason === 'trial_expired' && subscription?.status === 'canceled') {
+                title = "Your Subscription Has Ended";
+                message = `Your subscription has ended. Your profile and saved documents are still here. Resubscribe anytime to keep building tailored resumes and cover letters.`;
+            } else if (reason === 'trial_expired') {
                 title = "Your Trial Has Ended";
                 message = `Your free trial has ended. Upgrade to keep building tailored resumes and cover letters — your profile and history are saved and ready to go.`;
             } else if (reason === 'not_available') {

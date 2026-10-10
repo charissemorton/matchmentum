@@ -12,6 +12,20 @@ Scheduled releases ship every two weeks on Saturdays.
 
 > Items logged here since last release. Move to a versioned section on release day.
 
+### Fixed
+- Paid Lite and Pro subscribers were blocked as "trial expired" seven days after signup because upgrading never cleared `trial_expires_at`. `getUserSubscription()` now skips the trial expiry check for Lite and Pro.
+
+### Changed
+- Canceled subscribers now become read-only when their subscription ends, matching expired trials.
+- Upgrade modal shows "Your Subscription Has Ended" for canceled subscribers instead of the free trial message.
+
+### Backend (`job-search-backend/netlify/functions/stripe-webhook.js`)
+- `checkout.session.completed` and `customer.subscription.updated` now set `trial_expires_at` to null.
+- `customer.subscription.deleted` now sets `trial_expires_at` to the cancellation time.
+
+### Database
+- Cleared `trial_expires_at` on Lite subscriptions 483 and 500 (2026-10-10) so both stay active past their original trial dates.
+
 ---
 
 ## [v1.1.0] — 2026-03-28 · Gap Context Modal + Background Context Routing
