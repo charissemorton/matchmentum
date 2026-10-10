@@ -3,32 +3,36 @@
 All notable changes to MatchMentum are documented here.  
 Format: **Added** (new features) | **Changed** (modifications to existing) | **Fixed** (bug fixes) | **Removed** (deleted functionality)
 
-Hotfixes ship immediately as patch releases (e.g. v1.0.1) outside the regular bi-weekly cycle.  
-Scheduled releases ship every two weeks on Saturdays.
+Changes ship whenever they pass testing on staging, with no fixed release day. Hotfixes ship immediately as patch releases (e.g. v1.0.1).
 
 ---
 
-## [Unreleased] — v1.2.0 · Target: 2026-04-11
+## [Unreleased]
 
 > Items logged here since last release. Move to a versioned section on release day.
 
 ### Fixed
 - Paid Lite and Pro subscribers were blocked as "trial expired" seven days after signup because upgrading never cleared `trial_expires_at`. `getUserSubscription()` now skips the trial expiry check for Lite and Pro.
-
 - Double-clicking Analyze, Generate Resume, or Generate Cover Letter could start two runs at once, counting usage twice. Each action now ignores a second click while one is running, and the Analyze button shows "Analyzing..." until it finishes.
 - AI calls ran at the default temperature instead of 0 because `claude-proxy.mjs` dropped the `temperature` value sent by the app. Match scores for the same job description could differ by 14+ points between runs.
+- PROD-6: Resumes generated for profiles with work experience saved as one text block had no work history ("No recent work history was provided"). `_normalizeExperienceForResume` now reads both the text format and the job list.
+- PROD-8: New profiles were saved with work experience as raw text until the user clicked Confirm, so anyone who left at Review Profile stayed in that format. Work experience is now converted to a job list before the first save, and every cloud save (`saveProfileToCloud`) converts it as a backstop.
+- PROD-7: Profiles already stuck in the text format are converted to a job list and saved back the first time they load (`loadProfileFromCloud`), with no action from the user.
+- PROD-20: On first login, simultaneous subscription lookups each tried to create the row, and the ones that lost returned nothing (usage widget hidden, possible "no subscription" upgrade modal). Lookups now share one request, an "already exists" conflict loads the existing row, and a new row gets its trial days left calculated on first load.
 
 ### Changed
 - Canceled subscribers now become read-only when their subscription ends, matching expired trials.
 - Upgrade modal shows "Your Subscription Has Ended" for canceled subscribers instead of the free trial message.
+- Disabled primary buttons are dimmed with no hover effect and a not-allowed cursor.
 
-### Backend (`job-search-backend/netlify/functions/stripe-webhook.js`)
-- `checkout.session.completed` and `customer.subscription.updated` now set `trial_expires_at` to null.
-- `customer.subscription.deleted` now sets `trial_expires_at` to the cancellation time.
+### Backend (`job-search-backend`)
+- `stripe-webhook.js`: `checkout.session.completed` and `customer.subscription.updated` now set `trial_expires_at` to null.
+- `stripe-webhook.js`: `customer.subscription.deleted` now sets `trial_expires_at` to the cancellation time.
 - `claude-proxy.mjs` now passes `temperature` through to Anthropic (defaults to 0).
 
 ### Database
 - Cleared `trial_expires_at` on Lite subscriptions 483 and 500 (2026-10-10) so both stay active past their original trial dates.
+- PROD-19 (2026-10-10): `increment_usage` only updates the signed-in user's own counters. `reset_monthly_usage` and `is_usage_limit_reached` can no longer be called from the browser. Removed the policy that let users update their own subscription row (tier and counters could be changed from the browser). Users can only insert their own free starter row. Removed public read, insert and update access to the legacy `users` table. Set `search_path` on public functions.
 
 ---
 
