@@ -8477,10 +8477,13 @@ Return ONLY the JSON.`;
         // Resume generation: always work from a clean, date-ordered array.
         // Re-running the stored roles through the parser repairs profiles damaged by the old
         // round trip (dates stranded in descriptions, sentence fragments saved as roles).
-        // Plain-text (string) experience is not handled here.
+        // Accepts both stored formats: a role array, or the older single text block
+        // (profiles saved straight from the parser before Confirm).
         function _normalizeExperienceForResume(experience) {
-            if (!Array.isArray(experience)) return [];
-            const roles = parseExperienceText(experienceToText(experience))
+            const sourceText = Array.isArray(experience) ? experienceToText(experience)
+                : (typeof experience === 'string' ? experience : '');
+            if (!sourceText.trim()) return [];
+            const roles = parseExperienceText(sourceText)
                 .filter(r => r.title || r.company || (r.description || '').trim());
             const isDated = r => !isNaN(_expDateValue(r.startDate, false)) || isFinite(_expDateValue(r.endDate, true));
             const allDated = roles.length > 0 && roles.every(isDated);
