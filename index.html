@@ -445,6 +445,20 @@
             transform: translateY(0px);
         }
 
+        .btn-primary:disabled,
+        .btn-primary:disabled:hover,
+        .btn-primary:disabled:active {
+            background: #2563eb;
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary:disabled:hover::before {
+            left: -100%;
+        }
+
         .btn-secondary {
             background: #ffffff;
             color: #334155;
