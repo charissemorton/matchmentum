@@ -6321,7 +6321,15 @@ async function getUserSubscription() {
 
                 if (data && data.profile_data) {
                     debugLog('✅ Profile loaded from cloud');
-                    return data.profile_data;
+                    const loaded = data.profile_data;
+                    // One-time repair: older profiles were saved with work experience as a
+                    // single text block. Convert to a job list and save it back.
+                    if (typeof loaded.experience === 'string') {
+                        _ensureExperienceList(loaded);
+                        await saveProfileToCloud(loaded);
+                        debugLog('Converted text-format work experience to a job list');
+                    }
+                    return loaded;
                 }
 
                 return null;
