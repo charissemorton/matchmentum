@@ -6256,6 +6256,7 @@ async function getUserSubscription() {
         }
 
         async function saveProfileToCloud(profileData) {
+            _ensureExperienceList(profileData);
             const supabase = getSupabase();
             const { data: { user } } = await supabase.auth.getUser();
             
@@ -7083,6 +7084,7 @@ async function getUserSubscription() {
                 }
 
                 // Save merged result
+                _ensureExperienceList(profileData);
                 await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
                 await saveProfileToCloud(profileData);
 
@@ -8445,6 +8447,15 @@ Return ONLY the JSON.`;
                 }
             }
             return null;
+        }
+
+        // Work experience is always stored as a role array. The parser returns one text
+        // block, so convert it before any save (upload, sync, gap answers) writes it out.
+        function _ensureExperienceList(profile) {
+            if (profile && typeof profile.experience === 'string') {
+                profile.experience = parseExperienceText(profile.experience);
+            }
+            return profile;
         }
 
         function parseExperienceText(text) {
