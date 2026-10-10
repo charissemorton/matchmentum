@@ -8723,6 +8723,9 @@ Return ONLY the JSON.`;
             _proceedWithAnalysis(jobDesc);
         }
 
+        // Blocks a second analysis while one is already running (double-click, repeat entry point)
+        let _analysisInFlight = false;
+
         async function _proceedWithAnalysis(jobDesc, isGapReanalysis = false) {
 
             // Reset session gap context flag for fresh analyses only
@@ -8743,6 +8746,12 @@ Return ONLY the JSON.`;
                 `;
                 return;
             }
+
+            if (_analysisInFlight) return;
+            _analysisInFlight = true;
+            const analyzeBtn = document.querySelector('button[onclick="analyzeJob()"]');
+            if (analyzeBtn) { analyzeBtn.disabled = true; analyzeBtn.textContent = 'Analyzing...'; }
+            try {
 
             currentJobDescription = jobDesc;
             
@@ -9007,6 +9016,10 @@ EXAMPLE OUTPUT (abbreviated - a posting with three required and one preferred qu
             } catch (error) {
                 console.error('Error analyzing job:', error);
                 resultDiv.innerHTML = `<div class="alert alert-danger">Error analyzing job. Please try again.</div>`;
+            }
+            } finally {
+                _analysisInFlight = false;
+                if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.textContent = 'Analyze Job Match'; }
             }
         }
 
@@ -9949,6 +9962,9 @@ Return ONLY valid JSON:
         }
 
         // Main chunked generation function
+        // Blocks a second resume generation while one is already running
+        let _resumeInFlight = false;
+
         async function generateResume() {
             // Check acknowledgment first
             if (!checkAcknowledgmentBeforeGeneration(() => generateResume())) {
@@ -9968,6 +9984,10 @@ Return ONLY valid JSON:
                 showSection('job-analysis-section');
                 return;
             }
+
+            if (_resumeInFlight) return;
+            _resumeInFlight = true;
+            try {
 
             // Check usage limit before proceeding
             const usageCheck = await checkUsageLimit('resumes');
@@ -10119,6 +10139,9 @@ Return ONLY valid JSON:
             } catch (error) {
                 console.error('Error generating resume:', error);
                 resultsContent.innerHTML = `<div class="alert alert-danger">Error generating resume: ${escapeHtml(error.message)}. Please try again.</div>`;
+            }
+            } finally {
+                _resumeInFlight = false;
             }
         }
 
@@ -10294,6 +10317,9 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                 return coverLetter;
         }
 
+        // Blocks a second cover letter generation while one is already running (shared by both cover letter paths)
+        let _coverInFlight = false;
+
         async function generateCoverLetter(tone = null) {
             // Check acknowledgment first
             if (!checkAcknowledgmentBeforeGeneration(() => generateCoverLetter(tone))) {
@@ -10327,6 +10353,10 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                 return;
             }
 
+            if (_coverInFlight) return;
+            _coverInFlight = true;
+            try {
+
             const resultsContent = document.getElementById('results-content');
             resultsContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating cover letter...</p></div>';
             showSection('results-section');
@@ -10348,6 +10378,9 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
             } catch (error) {
                 console.error('Error generating cover letter:', error);
                 resultsContent.innerHTML = `<div class="alert alert-danger">Error generating cover letter. Please try again.</div>`;
+            }
+            } finally {
+                _coverInFlight = false;
             }
         }
 
@@ -10397,6 +10430,10 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
             // footer in the DOM (see generateResume()'s board-flow template), so
             // filling it in place already lands the cover letter above the footer —
             // no repositioning needed.
+            if (_coverInFlight) return;
+            _coverInFlight = true;
+            try {
+
             const coverSlot = document.getElementById('lk-coverletter-slot');
             if (coverSlot) coverSlot.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating cover letter...</p></div>';
 
@@ -10417,6 +10454,9 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
             } catch (error) {
                 console.error('Error generating cover letter:', error);
                 if (coverSlot) coverSlot.innerHTML = `<div class="alert alert-danger">Error generating cover letter. Please try again.</div>`;
+            }
+            } finally {
+                _coverInFlight = false;
             }
         }
 

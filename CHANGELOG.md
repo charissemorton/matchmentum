@@ -15,6 +15,9 @@ Scheduled releases ship every two weeks on Saturdays.
 ### Fixed
 - Paid Lite and Pro subscribers were blocked as "trial expired" seven days after signup because upgrading never cleared `trial_expires_at`. `getUserSubscription()` now skips the trial expiry check for Lite and Pro.
 
+- Double-clicking Analyze, Generate Resume, or Generate Cover Letter could start two runs at once, counting usage twice. Each action now ignores a second click while one is running, and the Analyze button shows "Analyzing..." until it finishes.
+- AI calls ran at the default temperature instead of 0 because `claude-proxy.mjs` dropped the `temperature` value sent by the app. Match scores for the same job description could differ by 14+ points between runs.
+
 ### Changed
 - Canceled subscribers now become read-only when their subscription ends, matching expired trials.
 - Upgrade modal shows "Your Subscription Has Ended" for canceled subscribers instead of the free trial message.
@@ -22,6 +25,7 @@ Scheduled releases ship every two weeks on Saturdays.
 ### Backend (`job-search-backend/netlify/functions/stripe-webhook.js`)
 - `checkout.session.completed` and `customer.subscription.updated` now set `trial_expires_at` to null.
 - `customer.subscription.deleted` now sets `trial_expires_at` to the cancellation time.
+- `claude-proxy.mjs` now passes `temperature` through to Anthropic (defaults to 0).
 
 ### Database
 - Cleared `trial_expires_at` on Lite subscriptions 483 and 500 (2026-10-10) so both stay active past their original trial dates.
