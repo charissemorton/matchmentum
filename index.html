@@ -7140,7 +7140,9 @@
   "phone": "",
   "location": "",
   "linkedin": "",
-  "experience": "",
+  "experience": [
+    {"title": "", "company": "", "startDate": "", "endDate": "", "description": ""}
+  ],
   "skills": "",
   "education": "",
   "certifications": "",
@@ -7149,18 +7151,62 @@
 
 EXTRACTION RULES:
 - Parse name, email, phone, location (city/state), complete LinkedIn URL
-- Experience: Extract all work history with achievements - preserve complete text with metrics. Format each position as "Title | Company | Location | Dates" on the first line, followed by description. Separate each position from the next with a blank line (\\n\\n).
+- Experience: Return a list with one object per job, in the order the resume lists them. Never return experience as one text block.
+  - title: the job title only
+  - company: the employer name only (no location, no dates)
+  - startDate, endDate: as written on the resume. Use "Present" for a current job. Use "" when a date is missing.
+  - description: every duty and achievement listed under that job - preserve complete text with metrics. One per line, separated by \\n, keeping any bullet characters. No blank lines.
+  - Several job titles at one company: one object per job title.
+  - Only jobs go in experience. The resume header (name, contact details, headline, summary) never goes in a job. Education, certifications, skills and projects never go in a job, even when the resume places them inside or next to the work history.
+  - Bullets stay with the job they sit under. Never move job bullets into education.
 - Skills: List all skills as a comma-separated list
 - Education: Extract degrees and formal education only. Separate each degree with a blank line (\\n\\n).
 - Certifications: Extract ALL certifications from any section. Look for section headers containing words like "certifications", "licenses", "credentials", "professional development", or sections combining education and certifications. Extract every certification listed with dates and issuing organizations.
 - Projects: Extract if there is ANY section heading containing the word "project" or "portfolio" (e.g., "Projects", "Personal Projects", "AI Projects", "Technical Projects", "Project Portfolio"). Look for distinct project sections with titles and descriptions - do not extract work accomplishments from experience section. If no projects section exists, leave blank.
 - Dates: Keep original format from resume
 
+EXAMPLE (shows the format only - never copy its content)
+Input:
+Jordan Lee
+Austin, TX | jordan.lee@example.com | 555-010-0199
+PROFESSIONAL EXPERIENCE
+Senior Account Manager, Brightline Software, Austin, TX
+March 2021 - Present
+- Grew a 40-account portfolio 28% year over year
+- Led renewal talks for contracts worth 2.1M dollars
+Account Manager | Corvid Logistics | 06/2018 - 02/2021
+- Managed 25 mid-market accounts
+EDUCATION
+B.A. Communications, University of Texas, 2018
+- Graduated with honors
+
+Output:
+{"metadata": {"version": "2.0"}, "name": "Jordan Lee", "email": "jordan.lee@example.com", "phone": "555-010-0199", "location": "Austin, TX", "linkedin": "", "experience": [{"title": "Senior Account Manager", "company": "Brightline Software", "startDate": "March 2021", "endDate": "Present", "description": "- Grew a 40-account portfolio 28% year over year\\n- Led renewal talks for contracts worth 2.1M dollars"}, {"title": "Account Manager", "company": "Corvid Logistics", "startDate": "06/2018", "endDate": "02/2021", "description": "- Managed 25 mid-market accounts"}], "skills": "", "education": "B.A. Communications, University of Texas, 2018\\n- Graduated with honors", "certifications": "", "projects": ""}
+
 Return ONLY the JSON.`;
 
                 let response = await callClaudeAPI(systemPrompt, text);
                 response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                return JSON.parse(response);
+                const parsed = JSON.parse(response);
+                // Jobs arrive as a list. Keep only the five saved fields, as trimmed text.
+                // A text block (older response shape) is left alone: _ensureExperienceList
+                // converts it before save.
+                if (Array.isArray(parsed.experience)) {
+                    const asText = v => (v == null ? '' : String(v)).trim();
+                    parsed.experience = parsed.experience
+                        .filter(job => job && typeof job === 'object')
+                        .map(job => ({
+                            title: asText(job.title),
+                            company: asText(job.company),
+                            startDate: asText(job.startDate),
+                            endDate: asText(job.endDate),
+                            // Blank lines mark the gap between jobs when the list is flattened
+                            // for merging, so a description never carries one.
+                            description: asText(job.description).replace(/\n[ \t]*(?:\n[ \t]*)+/g, '\n')
+                        }))
+                        .filter(job => job.title || job.company || job.description);
+                }
+                return parsed;
             } catch (error) {
                 debugLog('AI parsing failed, using pattern parser:', error);
                 return parseResumeWithPatterns(text);
@@ -8476,8 +8522,9 @@ Return ONLY the JSON.`;
             return null;
         }
 
-        // Work experience is always stored as a role array. The parser returns one text
-        // block, so convert it before any save (upload, sync, gap answers) writes it out.
+        // Work experience is always stored as a role array. The AI parser returns one already;
+        // the pattern fallback and older data hold one text block, so convert that before any
+        // save (upload, sync, gap answers) writes it out.
         function _ensureExperienceList(profile) {
             if (profile && typeof profile.experience === 'string') {
                 profile.experience = parseExperienceText(profile.experience);
