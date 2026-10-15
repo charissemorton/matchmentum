@@ -19,6 +19,9 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 - PROD-8: New profiles were saved with work experience as raw text until the user clicked Confirm, so anyone who left at Review Profile stayed in that format. Work experience is now converted to a job list before the first save, and every cloud save (`saveProfileToCloud`) converts it as a backstop.
 - PROD-7: Profiles already stuck in the text format are converted to a job list and saved back the first time they load (`loadProfileFromCloud`), with no action from the user.
 - PROD-20: On first login, simultaneous subscription lookups each tried to create the row, and the ones that lost returned nothing (usage widget hidden, possible "no subscription" upgrade modal). Lookups now share one request, an "already exists" conflict loads the existing row, and a new row gets its trial days left calculated on first load.
+- PROD-9: The resume parser asked the AI for work experience as one block of text, then split it into jobs by pattern matching, which put resume headers, bullets and education in the wrong places. The AI now returns each job separately (title, company, start date, end date, description), using the same saved format as PROD-8.
+- PROD-45: In My Files, the Download as DOCX button on a saved file's View screen did nothing for any file loaded from the cloud. The file ID was written into the button unquoted, so the click threw a JavaScript syntax error. The ID is now quoted.
+- PROD-46: In My Files, View, Download DOCX and Delete did nothing for a file generated in the current session until the page was reloaded. New files have a numeric ID, the buttons pass it as text, and the lookup required an exact type match. `viewFile`, `downloadFileAsDOCX` and `deleteFile` now compare IDs as text.
 
 ### Changed
 - Canceled subscribers now become read-only when their subscription ends, matching expired trials.
