@@ -6593,7 +6593,7 @@
         }
 
         function viewFile(fileId) {
-            const file = generatedFiles.find(f => f.id === fileId);
+            const file = generatedFiles.find(f => String(f.id) === String(fileId));
             if (!file) return;
 
             // Clean leaked AI commentary from saved resumes at display time.
@@ -6610,7 +6610,7 @@
                 <div class="document-output">${renderMarkdown(displayContent)}</div>
                 <div class="button-group" style="margin-top: 24px;">
                     <button class="btn-secondary" onclick="copyCurrentViewedFile()">Copy Text</button>
-                    <button class="btn-primary" onclick="downloadFileAsDOCX(${file.id})">Download as DOCX</button>
+                    <button class="btn-primary" onclick="downloadFileAsDOCX('${file.id}')">Download as DOCX</button>
                 </div>
             `;
             
@@ -6642,7 +6642,7 @@
                     }
 
                     // Delete from local
-                    generatedFiles = generatedFiles.filter(f => f.id !== fileId);
+                    generatedFiles = generatedFiles.filter(f => String(f.id) !== String(fileId));
                     await saveGeneratedFiles();
                     displayGeneratedFiles();
                 },
@@ -6651,7 +6651,7 @@
         }
 
         async function downloadFileAsDOCX(fileId) {
-            const file = generatedFiles.find(f => f.id === fileId);
+            const file = generatedFiles.find(f => String(f.id) === String(fileId));
             if (!file) return;
 
             // Clean leaked AI commentary from saved resumes before building the DOCX.
