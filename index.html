@@ -4329,6 +4329,63 @@
             input.focus();
         }
 
+        /**
+         * PROD-47: Ask a user who arrived from a password reset link for a new
+         * password and save it. Stays open on errors so the user can retry.
+         * There is no cancel: skipping it would leave the user without a
+         * password they know.
+         */
+        function showSetNewPassword() {
+            if (_passwordDialogOpen) return;
+            _passwordDialogOpen = true;
+            const overlay = document.createElement('div');
+            overlay.className = 'mm-dialog-overlay';
+            overlay.innerHTML = `
+                <div class="mm-dialog" role="dialog" aria-modal="true">
+                    <div class="mm-dialog-title">Set a New Password</div>
+                    <div class="mm-dialog-message">Choose a new password for your account. It must be at least 6 characters.</div>
+                    <input class="mm-dialog-input mm-new-password" type="password" placeholder="New password" autocomplete="new-password" />
+                    <input class="mm-dialog-input mm-confirm-password" type="password" placeholder="Confirm new password" autocomplete="new-password" style="margin-top: 8px;" />
+                    <div class="mm-dialog-message mm-password-error" style="color: #dc2626; display: none; margin-top: 8px;"></div>
+                    <div class="mm-dialog-actions">
+                        <button class="mm-dialog-confirm">Save Password</button>
+                    </div>
+                </div>
+            `;
+            const newInput = overlay.querySelector('.mm-new-password');
+            const confirmInput = overlay.querySelector('.mm-confirm-password');
+            const errorEl = overlay.querySelector('.mm-password-error');
+            const saveBtn = overlay.querySelector('.mm-dialog-confirm');
+            const close = () => { overlay.remove(); _passwordDialogOpen = false; };
+            const showError = (msg) => { errorEl.textContent = msg; errorEl.style.display = 'block'; };
+
+            const save = async () => {
+                const password = newInput.value;
+                if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+                if (password !== confirmInput.value) { showError('The passwords do not match.'); return; }
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+                try {
+                    const { error } = await getSupabase().auth.updateUser({ password });
+                    if (error) throw error;
+                    close();
+                    toastSuccess('Use your new password the next time you sign in.', 'Password Updated');
+                } catch (error) {
+                    console.error('Password update error:', error);
+                    showError(error.message || 'Could not save your password. Please try again.');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Password';
+                }
+            };
+
+            saveBtn.onclick = save;
+            [newInput, confirmInput].forEach(input => input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') save();
+            }));
+            document.body.appendChild(overlay);
+            newInput.focus();
+        }
+
         // ========================================
         // ANALYTICS TRACKING SYSTEM
         // ========================================
@@ -4394,6 +4451,12 @@
         const supabaseUrl = 'https://bpvmsnlfngtyvvkyhetd.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwdm1zbmxmbmd0eXZ2a3loZXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NzEyOTQsImV4cCI6MjA4NjA0NzI5NH0.rO8cKnIQH5ydUE7hYiHst6vErg_TYTNXGlpzmapcVFk';
         let supabaseClient = null;
+
+        // PROD-47: Note a password reset link before the Supabase client starts.
+        // The client reads the token from the URL, clears it, and fires
+        // PASSWORD_RECOVERY before our onAuthStateChange listener is attached.
+        const _passwordRecoveryRedirect = /(^#|&)type=recovery(&|$)/.test(window.location.hash);
+        let _passwordDialogOpen = false;
         
         /**
          * Get or create Supabase client
@@ -5189,11 +5252,13 @@
                 
                 // Initialize auth UI
                 await updateAuthUI();
+                if (_passwordRecoveryRedirect) showSetNewPassword();
                 
                 // Listen for auth state changes
                 supabase.auth.onAuthStateChange((event, session) => {
                     debugLog('Auth state changed:', event);
                     updateAuthUI();
+                    if (event === 'PASSWORD_RECOVERY') showSetNewPassword();
                 });
                 
             } catch (error) {
@@ -5565,7 +5630,7 @@
                 'Enter your email address and we\'ll send you a reset link.',
                 (email) => {
                     const supabase = getSupabase();
-                    supabase.auth.resetPasswordForEmail(email)
+                    supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname })
                         .then(() => {
                             toastSuccess('Check your inbox.', 'Password Reset Email Sent!');
                             closeAuthModal();
