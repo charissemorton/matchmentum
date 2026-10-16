@@ -6233,6 +6233,7 @@
         // action hierarchy, and inline cover-letter stacking — see generateResume().
         let lkJobSource = null;
         let currentSessionGapContext = false; // true only after gap modal submitted in current analysis session
+        let _gapQuestions = []; // [{ question, gap }] for the open gap modal; answers map to gaps through this, not by position
         let _pendingIncomingProfile   = null; // incoming profile awaiting conflict resolution
         let _pendingAutoMergedProfile = null; // base profile with new items already merged in
         let _pendingConflicts = [];           // array of {id, label, section, type, current?, incoming}
@@ -9515,8 +9516,9 @@ EXAMPLE OUTPUT (abbreviated - a posting with three required and one preferred qu
             document.getElementById('gap-save-btn').textContent = 'Save answers';
             document.getElementById('gap-save-btn').onclick = saveGapAnswers;
 
-            const gapsText = currentAnalysis.gaps.join('\n');
-            const prompt = `You are helping a job seeker whose resume analysis identified the following gaps:
+            const gaps = currentAnalysis.gaps || [];
+            const gapsText = gaps.map((g, i) => `${i + 1}. ${g}`).join('\n');
+            const prompt = `You are helping a job seeker whose resume analysis identified the following gaps (numbered):
 
 ${gapsText}
 
@@ -9524,34 +9526,65 @@ Generate up to 4 short, specific questions to ask the candidate about whether th
 
 Rules:
 - Ask only about the gaps listed above
+- Each question is about exactly one gap; give that gap's number
 - Frame each question assuming the candidate may already have this experience
 - Keep questions conversational, not clinical
 - Do not ask yes/no questions — ask them to describe what they have done
 - Maximum 4 questions
-- Return a JSON array of strings only, with no preamble, explanation, or markdown formatting
+- Return a JSON array of objects only, with no preamble, explanation, or markdown formatting
 
-Example format:
-["Question one", "Question two"]`;
+Example input:
+1. No experience administering Salesforce
+2. Limited people management experience
+
+Example output:
+[{"gap": 1, "question": "What have you set up or customized in Salesforce, even informally?"}, {"gap": 2, "question": "Tell us about a time you led, coached or onboarded other people, even without a manager title."}]`;
+
+            // Jobs the user can attach an answer to (role array only; text-format profiles get "Somewhere else" only)
+            const gapJobs = Array.isArray(profileData?.experience)
+                ? profileData.experience
+                    .map((r, idx) => ({ idx, label: [r?.title, r?.company].filter(Boolean).join(', ') }))
+                    .filter(j => j.label)
+                : [];
 
             callClaudeAPI(prompt, 'Generate gap questions.')
                 .then(response => {
-                    let questions = [];
+                    let parsed = [];
                     try {
                         const clean = response.replace(/```json|```/g, '').trim();
-                        questions = JSON.parse(clean);
+                        parsed = JSON.parse(clean);
+                        if (!Array.isArray(parsed)) parsed = [];
                     } catch(e) {
-                        questions = currentAnalysis.gaps.map(g => `Can you tell us more about your experience related to: ${g}?`);
+                        parsed = [];
+                    }
+                    let questions = parsed.map(item => {
+                        if (typeof item === 'string') return { question: item, gap: '' };
+                        const n = parseInt(item?.gap, 10);
+                        return { question: String(item?.question || '').trim(), gap: (n >= 1 && gaps[n - 1]) ? gaps[n - 1] : '' };
+                    }).filter(q => q.question);
+                    if (questions.length === 0) {
+                        questions = gaps.map(g => ({ question: `Can you tell us more about your experience related to: ${g}?`, gap: g }));
                     }
                     questions = questions.slice(0, 4);
+                    _gapQuestions = questions;
+                    const jobOptions = gapJobs.map(j => `<option value="${j.idx}">${escapeHtml(j.label)}</option>`).join('');
                     document.getElementById('gap-questions').innerHTML = `
                         <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">
                             Answer what applies. Skip anything that doesn't — only what you answer will be added to your profile.
                         </p>
                         ${questions.map((q, i) => `
                             <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 6px; line-height: 1.4;">${escapeHtml(q)}</label>
+                                <label style="display: block; font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 6px; line-height: 1.4;">${escapeHtml(q.question)}</label>
                                 <textarea id="gap-answer-${i}" placeholder="Describe what you've done..." style="width: 100%; min-height: 72px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
-                                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                                ${gapJobs.length ? `
+                                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                                    <label for="gap-job-${i}" style="font-size: 12px; color: #475569; white-space: nowrap;">Where did you do this?</label>
+                                    <select id="gap-job-${i}" onchange="toggleGapOtherFields(${i})" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155; font-family: inherit; background: white;">
+                                        ${jobOptions}
+                                        <option value="other" selected>Somewhere else, not one of these jobs</option>
+                                    </select>
+                                </div>` : ''}
+                                <div id="gap-other-${i}" style="display: flex; gap: 8px; margin-top: 6px;">
                                     <input type="text" id="gap-when-${i}" placeholder="When? (e.g. 2024)" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
                                     <input type="text" id="gap-role-${i}" placeholder="Role or context (optional)" style="flex: 2; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
                                 </div>
@@ -9564,6 +9597,13 @@ Example format:
                 });
         }
 
+        // When/Role fields only apply to "Somewhere else" answers
+        function toggleGapOtherFields(i) {
+            const sel = document.getElementById(`gap-job-${i}`);
+            const other = document.getElementById(`gap-other-${i}`);
+            if (other) other.style.display = (!sel || sel.value === 'other') ? 'flex' : 'none';
+        }
+
         function closeGapModal() {
             document.getElementById('gap-modal').classList.remove('show');
         }
@@ -9572,20 +9612,29 @@ Example format:
             const questions = document.querySelectorAll('[id^="gap-answer-"]');
             if (questions.length === 0) return;
 
-            const answers = [];
+            const answers = [];      // "Somewhere else" -> Background Context
+            const jobAnswers = [];   // attached to a job -> that job's Duties
             questions.forEach((textarea, i) => {
                 const answer = textarea.value.trim();
                 if (!answer) return;
+                const gap = _gapQuestions[i]?.gap || '';
+                const jobSel = document.getElementById(`gap-job-${i}`)?.value;
+                const jobIdx = (jobSel !== undefined && jobSel !== 'other') ? parseInt(jobSel, 10) : NaN;
+                const job = Array.isArray(profileData?.experience) ? profileData.experience[jobIdx] : null;
+                if (job) {
+                    jobAnswers.push({ jobIdx, gap, answer, label: [job.title, job.company].filter(Boolean).join(', ') });
+                    return;
+                }
                 const when = document.getElementById(`gap-when-${i}`)?.value.trim() || '';
                 const role = document.getElementById(`gap-role-${i}`)?.value.trim() || '';
-                let entry = `Gap: ${escapeHtml(currentAnalysis.gaps[i] || '')}\nUser response: ${answer}`;
+                let entry = `Gap: ${escapeHtml(gap)}\nUser response: ${answer}`;
                 if (when || role) {
                     entry += `\nContext: ${[when, role].filter(Boolean).join(' | ')}`;
                 }
                 answers.push(entry);
             });
 
-            if (answers.length === 0) {
+            if (answers.length === 0 && jobAnswers.length === 0) {
                 closeGapModal();
                 return;
             }
@@ -9609,17 +9658,73 @@ End with: "This will be available for every resume you generate going forward."
 Do not use the word "will" more than twice total. 
 Do not use quotes. Return only the 2 sentences, nothing else.`;
 
+            const bulletsPrompt = `A job seeker described experience for specific jobs on their resume. Rewrite each answer as resume-style bullet points for that job.
+
+Rules:
+- Use only facts the candidate stated. Do not invent numbers, tools, results or scope
+- Start each bullet with a strong past-tense action verb
+- 1 to 3 bullets per answer, each one line, no ending period
+- Do not include bullet symbols, dashes or numbering in the text
+- Return a JSON array only, one object per answer, with no preamble, explanation, or markdown formatting
+
+Example input:
+Answer 1 (Job: Support Lead, Acme)
+I ran our Zendesk setup, built the macros and trained 6 new agents on it
+
+Example output:
+[{"answer": 1, "bullets": ["Administered the team's Zendesk instance and built its macro library", "Trained 6 new support agents on Zendesk workflows"]}]
+
+Answers:
+${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it addresses: ${a.gap}` : ''}\n${a.answer}`).join('\n\n')}`;
+
             try {
-                const confirmation = await callClaudeAPI(confirmPrompt, 'Generate gap confirmation.');
+                const [confirmation, bulletsResponse] = await Promise.all([
+                    answers.length ? callClaudeAPI(confirmPrompt, 'Generate gap confirmation.') : Promise.resolve(''),
+                    jobAnswers.length ? callClaudeAPI(bulletsPrompt, 'Write resume bullets.') : Promise.resolve('')
+                ]);
+
+                // Bullets per job answer; fall back to the user's own words if the AI response can't be read
+                let bulletSets = [];
+                if (jobAnswers.length) {
+                    try {
+                        const parsed = JSON.parse(bulletsResponse.replace(/```json|```/g, '').trim());
+                        if (Array.isArray(parsed)) bulletSets = parsed;
+                    } catch(e) { bulletSets = []; }
+                }
+                const jobAdditions = jobAnswers.map((a, n) => {
+                    const set = bulletSets.find(s => parseInt(s?.answer, 10) === n + 1);
+                    let bullets = Array.isArray(set?.bullets)
+                        ? set.bullets.map(b => String(b).replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean)
+                        : [];
+                    if (bullets.length === 0) bullets = [a.answer.replace(/\s+/g, ' ').trim()];
+                    return { jobIdx: a.jobIdx, label: a.label, bullets };
+                });
+
+                // One block per job, answers for the same job grouped together
+                const jobBlocks = [];
+                jobAdditions.forEach(add => {
+                    const block = jobBlocks.find(b => b.jobIdx === add.jobIdx);
+                    if (block) block.bullets.push(...add.bullets);
+                    else jobBlocks.push({ jobIdx: add.jobIdx, label: add.label, bullets: [...add.bullets] });
+                });
+
                 document.getElementById('gap-questions').innerHTML = `
+                    ${jobBlocks.map(b => `
+                    <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px 18px; margin-bottom: 12px;">
+                        <p style="font-size: 12px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">Adding to ${escapeHtml(b.label)}</p>
+                        <ul style="font-size: 14px; color: #14532d; line-height: 1.6; margin: 0; padding-left: 20px;">
+                            ${b.bullets.map(x => `<li>${escapeHtml(x)}</li>`).join('')}
+                        </ul>
+                    </div>`).join('')}
+                    ${answers.length ? `
                     <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px 18px; margin-bottom: 4px;">
                         <p style="font-size: 12px; font-weight: 600; color: #166534; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">What we're adding to your profile</p>
                         <p style="font-size: 14px; color: #14532d; line-height: 1.6; margin: 0;">${escapeHtml(confirmation)}</p>
-                    </div>
+                    </div>` : ''}
                     <p style="font-size: 12px; color: #94a3b8; margin-top: 10px; font-style: italic;">Questions you left blank will not be included.</p>`;
                 document.getElementById('gap-save-btn').textContent = 'Looks good';
                 document.getElementById('gap-save-btn').disabled = false;
-                document.getElementById('gap-save-btn').onclick = () => confirmGapContext(answersText);
+                document.getElementById('gap-save-btn').onclick = () => confirmGapContext(answersText, jobBlocks);
 
                 const footer = document.getElementById('gap-modal-footer');
                 if (!document.getElementById('gap-back-btn')) {
@@ -9636,7 +9741,7 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
             }
         }
 
-        async function confirmGapContext(answersText) {
+        async function confirmGapContext(answersText, jobBlocks = []) {
             document.getElementById('gap-save-btn').disabled = true;
             document.getElementById('gap-questions').innerHTML = `
                 <div style="text-align: center; padding: 30px 0; color: #64748b;">
@@ -9652,11 +9757,23 @@ Do not use quotes. Return only the 2 sentences, nothing else.`;
                     currentSessionGapContext = true;
                 }
 
+                // Append bullets to each chosen job's Duties (role array: title, company, startDate, endDate, description)
+                if (jobBlocks.length && Array.isArray(profileData.experience)) {
+                    profileData.experience = profileData.experience.map((r, idx) => {
+                        const block = jobBlocks.find(b => b.jobIdx === idx);
+                        if (!block) return r;
+                        const added = block.bullets.map(b => `• ${b}`).join('\n');
+                        const desc = (r.description || '').replace(/\s+$/, '');
+                        return { ...r, description: desc ? `${desc}\n${added}` : added };
+                    });
+                    currentSessionGapContext = true;
+                }
+
                 await saveProfileToCloud(profileData);
                 closeGapModal();
                 const backBtn = document.getElementById('gap-back-btn');
                 if (backBtn) backBtn.remove();
-                showToast('Background context saved. Re-analyzing...', 'success');
+                showToast(jobBlocks.length ? 'Profile updated. Re-analyzing...' : 'Background context saved. Re-analyzing...', 'success');
                 if (currentJobDescription) {
                     _preGapScore = currentAnalysis?.matchScore ?? null;
                     await _proceedWithAnalysis(currentJobDescription, true);
