@@ -5145,10 +5145,10 @@
                     }
                 }
 
-                // Show/hide upgrade link (hide for Pro)
+                // Show/hide upgrade link (hide for Pro and Beta)
                 const upgradeLink = document.getElementById('sidebarUpgradeLink');
                 if (upgradeLink) {
-                    upgradeLink.style.display = tier === 'pro' ? 'none' : 'inline';
+                    upgradeLink.style.display = ['pro', 'beta'].includes(tier) ? 'none' : 'inline';
                 }
 
                 // --- Trial countdown in sidebar ---
