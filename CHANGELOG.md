@@ -11,6 +11,9 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 
 > Items logged here since last release. Move to a versioned section on release day.
 
+### Added
+- PROD-50: Help & Support link in the sidebar, below Pricing, that opens an email to support@matchmentum.com.
+
 ### Fixed
 - Paid Lite and Pro subscribers were blocked as "trial expired" seven days after signup because upgrading never cleared `trial_expires_at`. `getUserSubscription()` now skips the trial expiry check for Lite and Pro.
 - Double-clicking Analyze, Generate Resume, or Generate Cover Letter could start two runs at once, counting usage twice. Each action now ignores a second click while one is running, and the Analyze button shows "Analyzing..." until it finishes.
@@ -24,6 +27,7 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 - PROD-46: In My Files, View, Download DOCX and Delete did nothing for a file generated in the current session until the page was reloaded. New files have a numeric ID, the buttons pass it as text, and the lookup required an exact type match. `viewFile`, `downloadFileAsDOCX` and `deleteFile` now compare IDs as text.
 - PROD-47: Password reset links signed the user in but never asked for a new password, so the old password stayed the only one. Opening a reset link now shows a Set a New Password dialog that saves through `supabase.auth.updateUser`. Reset emails now return to the page they were requested from (staging or production). The dialog comes back if the page is refreshed before the new password is saved, and an expired or already-used email link now shows a "Link Expired" message instead of nothing.
 - PROD-42: Score Breakdown qualification text on Job Analysis results was light gray on a near-white card (about 1.4:1 contrast) and hard to read. Each qualification now sits in its own block with dark text (#475569, 7.25:1), and its credit shows as a colored badge: green 90-100% (exact or close match), amber 60-89% (transferable or related), red 0-59% (missing). Display only; scoring is unchanged.
+- PROD-50: The Support links in the landing footer, app footer and Account Settings went nowhere, and Account Settings showed "[email protected]". The addresses had been replaced with Cloudflare email-protection links when the file was downloaded through a Cloudflare-served page. All three are plain `mailto:support@matchmentum.com` links again, and the landing page mock resume shows its sample email as text. The end of index.html had also been cut off since a February upload, ending partway through the app footer's Support link. The footer's copyright line and closing tags are restored.
 
 ### Changed
 - Canceled subscribers now become read-only when their subscription ends, matching expired trials.

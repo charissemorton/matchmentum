@@ -3394,6 +3394,25 @@
         .mm-dialog-confirm.danger:hover {
             background: #dc2626;
         }
+
+        /* === JOB CARDS (Work Experience on Review Profile and manual entry) === */
+        .job-cards { display: flex; flex-direction: column; gap: 16px; }
+        .job-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; }
+        .job-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .job-card-num { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .job-card-remove { padding: 6px 14px; font-size: 13px; font-weight: 600; background: #ffffff; color: #ef4444; border: 1px solid #fecaca; border-radius: 10px; }
+        .job-card-remove:hover { background: #fef2f2; }
+        .job-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+        .job-card-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .job-card-field label { font-size: 13px; font-weight: 600; color: #334155; }
+        .job-card input[type="text"], .job-card textarea { padding: 12px 14px; font-size: 15px; }
+        .job-card textarea { min-height: 120px; }
+        .job-card input::placeholder, .job-card textarea::placeholder { color: #94a3b8; }
+        .job-card input[type="text"]:disabled { background: #f1f5f9; color: #94a3b8; }
+        .job-card-field label.job-card-current { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+        .job-card-current input[type="checkbox"] { width: 18px; height: 18px; padding: 0; margin: 0; flex-shrink: 0; box-shadow: none; cursor: pointer; }
+        .job-card-add { margin-top: 16px; padding: 12px 22px; font-size: 14px; }
+        @media (max-width: 600px) { .job-card-grid { grid-template-columns: 1fr; } }
     </style>
     
     <!-- Supabase Database -->
@@ -3485,6 +3504,14 @@
                            aria-label="Pricing - View plans and pricing">
                             <i data-lucide="credit-card" class="nav-icon" aria-hidden="true"></i>
                             <span>Pricing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" 
+                           href="mailto:support@matchmentum.com" 
+                           aria-label="Help and Support - Email support@matchmentum.com">
+                            <i data-lucide="life-buoy" class="nav-icon" aria-hidden="true"></i>
+                            <span>Help &amp; Support</span>
                         </a>
                     </li>
                 </ul>
@@ -3704,7 +3731,8 @@
 
                     <div class="form-group">
                         <label>Work Experience</label>
-                        <textarea id="experience" placeholder="List your relevant work experience..."></textarea>
+                        <div id="experience-cards" class="job-cards"></div>
+                        <button type="button" class="btn-secondary job-card-add" onclick="addJobCard('experience-cards')">+ Add job</button>
                     </div>
 
                     <div class="form-group">
@@ -5117,10 +5145,10 @@
                     }
                 }
 
-                // Show/hide upgrade link (hide for Pro)
+                // Show/hide upgrade link (hide for Pro and Beta)
                 const upgradeLink = document.getElementById('sidebarUpgradeLink');
                 if (upgradeLink) {
-                    upgradeLink.style.display = tier === 'pro' ? 'none' : 'inline';
+                    upgradeLink.style.display = ['pro', 'beta'].includes(tier) ? 'none' : 'inline';
                 }
 
                 // --- Trial countdown in sidebar ---
@@ -6325,10 +6353,11 @@
             if (manualEntryForm) {
                 manualEntryForm.addEventListener('input', () => {
                     const draft = {};
-                    ['name','email','phone','location','linkedin','experience','skills','education','certifications','projects'].forEach(id => {
+                    ['name','email','phone','location','linkedin','skills','education','certifications','projects'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) draft[id] = el.value;
                     });
+                    draft.experience = readJobCards('experience-cards');
                     localStorage.setItem('manual-entry-draft', JSON.stringify(draft));
                 });
             }
@@ -7360,7 +7389,7 @@ Return ONLY the JSON.`;
                             phone:             document.getElementById('review-phone')?.value ?? autoMergedR.phone,
                             location:          document.getElementById('review-location')?.value ?? autoMergedR.location,
                             linkedin:          document.getElementById('review-linkedin')?.value ?? autoMergedR.linkedin,
-                            experience:        parseExperienceText(document.getElementById('review-experience')?.value ?? ''),
+                            experience:        readJobCards('review-experience-cards'),
                             skills:            parseSkillsText(document.getElementById('review-skills')?.value ?? ''),
                             projects:          parseProjectsText(document.getElementById('review-projects')?.value ?? ''),
                             education:         document.getElementById('review-education')?.value ?? autoMergedR.education,
@@ -7827,11 +7856,12 @@ Return ONLY the JSON.`;
             form.classList.add('active');
 
             // Pre-populate from existing profileData first, then let any in-progress draft override
-            const fields = ['name','email','phone','location','linkedin','experience','skills','education','certifications','projects'];
+            const fields = ['name','email','phone','location','linkedin','skills','education','certifications','projects'];
+            let jobs = profileData ? profileData.experience : [];
             if (profileData) {
                 fields.forEach(id => {
                     const el = document.getElementById(id);
-                    const value = id === 'experience' ? experienceToText(profileData[id]) : profileData[id];
+                    const value = profileData[id];
                     if (el && value) el.value = value;
                 });
             }
@@ -7843,8 +7873,10 @@ Return ONLY the JSON.`;
                         const el = document.getElementById(id);
                         if (el && d[id]) el.value = d[id];
                     });
+                    if (Array.isArray(d.experience) ? d.experience.length : d.experience) jobs = d.experience;
                 }
             } catch(e) {}
+            renderJobCards('experience-cards', jobs);
         }
 
         // Show location opt-in before document generation
@@ -7873,7 +7905,7 @@ Return ONLY the JSON.`;
             const phone = document.getElementById('phone').value;
             const location = document.getElementById('location').value;
             const linkedin = document.getElementById('linkedin').value;
-            const experience = document.getElementById('experience').value;
+            const experience = readJobCards('experience-cards');
             const skills = document.getElementById('skills').value;
             const education = document.getElementById('education').value;
             const certifications = document.getElementById('certifications').value;
@@ -7912,7 +7944,7 @@ Return ONLY the JSON.`;
                 phone: phone,
                 location: location,
                 linkedin: linkedin,
-                experience: parseExperienceText(experience),
+                experience: experience,
                 skills: parseSkillsText(skills),
                 education: education,
                 certifications: parseCertificationsText(certifications),
@@ -8338,7 +8370,6 @@ Return ONLY the JSON.`;
             const phone = profileData.phone || '';
             const location = profileData.location || '';
             const linkedin = profileData.linkedin || '';
-            const experienceText = experienceToText(profileData.experience);
             const skillsText = flattenSkills(profileData.skills);
             const educationText = profileData.education || '';
             const certificationsText = profileData.certifications || '';
@@ -8369,7 +8400,8 @@ Return ONLY the JSON.`;
                 </div>
                 <div class="form-group">
                     <label>Work Experience</label>
-                    <textarea id="review-experience" rows="15">${escapeHtml(experienceText)}</textarea>
+                    <div id="review-experience-cards" class="job-cards"></div>
+                    <button type="button" class="btn-secondary job-card-add" onclick="addJobCard('review-experience-cards')">+ Add job</button>
                 </div>
                 <div class="form-group">
                     <label>Skills</label>
@@ -8389,11 +8421,12 @@ Return ONLY the JSON.`;
                 </div>
                 <div class="form-group">
                     <label>Background Context</label>
-                    <p style="font-size: 13px; color: #64748b; margin: 0 0 8px 0; line-height: 1.5;">For experience and context that supports your profile but doesn't belong to a specific role. If you've realized a job is missing from your resume, add it to Work Experience above — this field is for everything else.</p>
+                    <p style="font-size: 13px; color: #64748b; margin: 0 0 8px 0; line-height: 1.5;">For experience and context that supports your profile but doesn't belong to a specific role. If a job is missing from your resume, use "+ Add job" under Work Experience above — this field is for everything else.</p>
                     <textarea id="review-background-context" rows="5" placeholder="Informal leadership, transferable skills, context that your resume doesn't fully capture..."></textarea>
                 </div>
             `;
             document.getElementById('review-background-context').value = backgroundContextText;
+            renderJobCards('review-experience-cards', profileData.experience);
         }
 
         async function confirmProfile() {
@@ -8411,7 +8444,7 @@ Return ONLY the JSON.`;
             const phone = document.getElementById('review-phone').value;
             const location = document.getElementById('review-location').value;
             const linkedin = document.getElementById('review-linkedin').value;
-            const experience = document.getElementById('review-experience').value;
+            const experience = readJobCards('review-experience-cards');
             const skills = document.getElementById('review-skills').value;
             const projects = document.getElementById('review-projects').value;
             const education = document.getElementById('review-education').value;
@@ -8452,7 +8485,7 @@ Return ONLY the JSON.`;
                 phone: phone,
                 location: location,
                 linkedin: linkedin,
-                experience: parseExperienceText(experience),
+                experience: experience,
                 skills: parseSkillsText(skills),
                 projects: parseProjectsText(projects),
                 education: education,
@@ -8617,6 +8650,89 @@ Return ONLY the JSON.`;
                 }
             }
             return null;
+        }
+
+        // ---- Work Experience job cards (Review Profile and manual entry) ----
+        // One editable card per job. Saving reads the cards exactly as shown (readJobCards);
+        // nothing is converted from text on save.
+        function _jobCardHtml(job) {
+            job = job || {};
+            const isCurrent = /^(present|current|now)$/i.test((job.endDate || '').trim());
+            return `<div class="job-card">
+                <div class="job-card-head">
+                    <span class="job-card-num"></span>
+                    <button type="button" class="job-card-remove" onclick="removeJobCard(this)">Remove</button>
+                </div>
+                <div class="job-card-grid">
+                    <div class="job-card-field"><label>Job Title</label><input type="text" data-field="title" value="${escapeHtml(job.title || '')}"></div>
+                    <div class="job-card-field"><label>Company</label><input type="text" data-field="company" value="${escapeHtml(job.company || '')}"></div>
+                    <div class="job-card-field"><label>Start Date</label><input type="text" data-field="startDate" placeholder="e.g. March 2021" value="${escapeHtml(job.startDate || '')}"></div>
+                    <div class="job-card-field"><label>End Date</label><input type="text" data-field="endDate" placeholder="e.g. June 2024" value="${isCurrent ? '' : escapeHtml(job.endDate || '')}"${isCurrent ? ' disabled' : ''}>
+                        <label class="job-card-current"><input type="checkbox" data-field="current" onchange="toggleJobCardCurrent(this)"${isCurrent ? ' checked' : ''}> I currently work here</label>
+                    </div>
+                </div>
+                <div class="job-card-field"><label>Duties</label><textarea data-field="description" rows="6">${escapeHtml(job.description || '')}</textarea></div>
+            </div>`;
+        }
+
+        function _renumberJobCards(container) {
+            if (!container) return;
+            container.querySelectorAll('.job-card').forEach((card, i) => {
+                const num = card.querySelector('.job-card-num');
+                if (num) num.textContent = 'Job ' + (i + 1);
+            });
+        }
+
+        // Render one card per job; an empty list shows one blank card to fill in.
+        function renderJobCards(containerId, jobs) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            let list = parseExperienceText(jobs || []);
+            if (!list.length) list = [{}];
+            container.innerHTML = list.map(_jobCardHtml).join('');
+            _renumberJobCards(container);
+        }
+
+        function addJobCard(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.insertAdjacentHTML('beforeend', _jobCardHtml({}));
+            _renumberJobCards(container);
+            container.lastElementChild?.querySelector('input[data-field="title"]')?.focus();
+            container.dispatchEvent(new Event('input', { bubbles: true })); // manual-entry draft autosave
+        }
+
+        function removeJobCard(btn) {
+            const card = btn.closest('.job-card');
+            if (!card) return;
+            const container = card.parentElement;
+            card.remove();
+            _renumberJobCards(container);
+            container?.dispatchEvent(new Event('input', { bubbles: true })); // manual-entry draft autosave
+        }
+
+        function toggleJobCardCurrent(checkbox) {
+            const endInput = checkbox.closest('.job-card')?.querySelector('input[data-field="endDate"]');
+            if (!endInput) return;
+            endInput.disabled = checkbox.checked;
+            if (checkbox.checked) endInput.value = '';
+        }
+
+        // Read the cards into the stored role array. Fully blank cards are skipped.
+        function readJobCards(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            return Array.from(container.querySelectorAll('.job-card')).map(card => {
+                const val = field => (card.querySelector(`[data-field="${field}"]`)?.value || '').trim();
+                const current = !!card.querySelector('input[data-field="current"]')?.checked;
+                return {
+                    title: val('title'),
+                    company: val('company'),
+                    startDate: val('startDate'),
+                    endDate: current ? 'Present' : val('endDate'),
+                    description: val('description')
+                };
+            }).filter(j => j.title || j.company || j.startDate || (j.endDate && j.endDate !== 'Present') || j.description);
         }
 
         // Work experience is always stored as a role array. The AI parser returns one already;
@@ -11727,7 +11843,7 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                     <div class="mock-resume-header">
                         <div class="mock-resume-name">Jordan Rivera</div>
                         <div class="mock-resume-title">Senior Product Manager — Growth & Platform</div>
-                        <div class="mock-resume-contact"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="553f3a2731343b153038343c397b363a38">[email&#160;protected]</a> &nbsp;·&nbsp; LinkedIn &nbsp;·&nbsp; San Francisco, CA</div>
+                        <div class="mock-resume-contact">jordan@email.com &nbsp;·&nbsp; LinkedIn &nbsp;·&nbsp; San Francisco, CA</div>
                     </div>
 
                     <div class="mock-section-label">Professional Summary</div>
@@ -11899,7 +12015,7 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
             <div class="landing-footer-links">
                 <a href="/privacy.html" target="_blank">Privacy Policy</a>
                 <a href="/terms.html" target="_blank">Terms of Service</a>
-                <a href="/cdn-cgi/l/email-protection#6615131616091412260b0712050e0b030812130b4805090b">Support</a>
+                <a href="mailto:support@matchmentum.com">Support</a>
                 <a href="#" onclick="handleSignUp(); return false;">Sign Up</a>
                 <a href="#" onclick="handleSignIn(); return false;">Log In</a>
             </div>
@@ -11968,7 +12084,7 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                     <div class="account-section-title">Support</div>
                     <div class="account-info-row">
                         <span class="account-info-label">Get help</span>
-                        <a href="/cdn-cgi/l/email-protection#1e6d6b6e6e716c6a5e737f6a7d76737b706a6b73307d7173" class="account-info-value" style="color: #2563eb; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><span class="__cf_email__" data-cfemail="11626461617e6365517c706572797c747f65647c3f727e7c">[email&#160;protected]</span></a>
+                        <a href="mailto:support@matchmentum.com" class="account-info-value" style="color: #2563eb; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">support@matchmentum.com</a>
                     </div>
                 </div>
 
@@ -12058,4 +12174,13 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                 <span style="color: #cbd5e1;">|</span>
                 <a href="/terms.html" style="color: #2563eb; text-decoration: none; margin: 0 16px; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Terms of Service</a>
                 <span style="color: #cbd5e1;">|</span>
-                <a href="/cdn-cgi/l/email-protection#e89b9d9898879a9ca885899c8b80858d869c9d85c68b8785" style="color: #2563eb; text-decoration: non
+                <a href="mailto:support@matchmentum.com" style="color: #2563eb; text-decoration: none; margin: 0 16px; transition: color 0.2s;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Support</a>
+            </div>
+            <div style="font-size: 12px; color: #94a3b8;">
+                © 2026 MatchMentum. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
