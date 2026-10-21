@@ -5462,6 +5462,9 @@
                 profileData = null;
                 generatedFiles = [];
                 localStorage.removeItem('manual-entry-draft');
+                // Remove the saved resume copy so it doesn't linger on shared computers.
+                // The next sign-in reloads the profile from the cloud.
+                await safeStorageDelete('job-assistant-profile');
                 
             } catch (error) {
                 console.error('Error signing out:', error);
