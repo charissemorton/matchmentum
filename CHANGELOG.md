@@ -12,7 +12,14 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 > Items logged here since last release. Move to a versioned section on release day.
 
 ### Added
-- PROD-50: Help & Support link in the sidebar, below Pricing, that opens an email to support@matchmentum.com.
+- PROD-50: Help & Support page, in the sidebar slot where About & Guidelines was. It has 25 FAQ answers in six groups (Getting started, Plans and billing, Your Resume Readiness Score, Privacy and your data, Using AI responsibly, Account), topic buttons that jump to each group, and a "Still need help?" card with the support email. It replaces the earlier email-only sidebar link.
+- PROD-50: Common Questions section on the landing page, between Responsible Use and Pricing, with six questions for signed-out visitors and a link to email support. Answers come from one list (`FAQ_ITEMS`) shared with the Help & Support page, so a question on both pages always shows the same answer.
+
+### Changed
+- PROD-50: The "Read Guidelines" link in the footer notice under the app now says Help & Support and opens the Help & Support page.
+
+### Removed
+- PROD-50: About & Guidelines page (`about-section`). Its score explainer and privacy points moved into the Help & Support FAQ. The "What it does / doesn't do" grid and responsibilities list repeated the acknowledgment every user sees before their first resume.
 
 ### Fixed
 - Paid Lite and Pro subscribers were blocked as "trial expired" seven days after signup because upgrading never cleared `trial_expires_at`. `getUserSubscription()` now skips the trial expiry check for Lite and Pro.
@@ -28,6 +35,8 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 - PROD-47: Password reset links signed the user in but never asked for a new password, so the old password stayed the only one. Opening a reset link now shows a Set a New Password dialog that saves through `supabase.auth.updateUser`. Reset emails now return to the page they were requested from (staging or production). The dialog comes back if the page is refreshed before the new password is saved, and an expired or already-used email link now shows a "Link Expired" message instead of nothing.
 - PROD-42: Score Breakdown qualification text on Job Analysis results was light gray on a near-white card (about 1.4:1 contrast) and hard to read. Each qualification now sits in its own block with dark text (#475569, 7.25:1), and its credit shows as a colored badge: green 90-100% (exact or close match), amber 60-89% (transferable or related), red 0-59% (missing). Display only; scoring is unchanged.
 - PROD-50: The Support links in the landing footer, app footer and Account Settings went nowhere, and Account Settings showed "[email protected]". The addresses had been replaced with Cloudflare email-protection links when the file was downloaded through a Cloudflare-served page. All three are plain `mailto:support@matchmentum.com` links again, and the landing page mock resume shows its sample email as text. The end of index.html had also been cut off since a February upload, ending partway through the app footer's Support link. The footer's copyright line and closing tags are restored.
+- PROD-50: The landing page Responsible Use section was labeled "How It Works", the same label as the section above it. It now says Responsible Use.
+- PROD-50: The email links in privacy.html (section 5.3) and terms.html (dispute resolution and contact) were Cloudflare email-protection links that went nowhere. All three are now `mailto:support@matchmentum.com`. The privacy.html link had pointed to privacy@matchmentum.com, an inbox that doesn't exist. Both files had also been cut off at the end since their February uploads, ending at "© 2026 MatchMentum. All". The copyright line and closing tags are restored (terms.html from its last complete version, b06d2ee).
 
 ### Changed
 - Canceled subscribers now become read-only when their subscription ends, matching expired trials.
