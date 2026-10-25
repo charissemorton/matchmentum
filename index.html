@@ -2186,6 +2186,17 @@
         color: #2563eb;
     }
 
+    /* PROD-53: the plan a paying user is already on */
+    .landing-pricing-cta:disabled,
+    .landing-pricing-cta:disabled:hover {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        color: #64748b;
+        box-shadow: none;
+        transform: none;
+        cursor: default;
+    }
+
     /* Footer */
     .landing-footer {
         background: #0f172a;
@@ -4030,7 +4041,7 @@
                                 <li><span class="check">&#10003;</span> DOCX downloads</li>
                                 <li><span class="check">&#10003;</span> Cloud storage &amp; sync</li>
                             </ul>
-                            <button class="landing-pricing-cta primary" onclick="startCheckout('lite')">Subscribe to Lite</button>
+                            <button class="landing-pricing-cta primary" id="pricingLiteBtn" onclick="startCheckout('lite')">Subscribe to Lite</button>
                         </div>
 
                         <!-- Pro -->
@@ -4045,7 +4056,7 @@
                                 <li><span class="check">&#10003;</span> DOCX downloads</li>
                                 <li><span class="check">&#10003;</span> Cloud storage &amp; sync</li>
                             </ul>
-                            <button class="landing-pricing-cta outline" onclick="startCheckout('pro')">Subscribe to Pro</button>
+                            <button class="landing-pricing-cta outline" id="pricingProBtn" onclick="startCheckout('pro')">Subscribe to Pro</button>
                         </div>
 
                     </div>
@@ -4744,11 +4755,56 @@
         }
         
         /**
+         * PROD-53: true when the user has a live Stripe subscription (Lite or Pro).
+         * The webhook clears stripe_subscription_id when a subscription is deleted.
+         */
+        function hasPaidSubscription(subscription) {
+            return !!subscription
+                && (subscription.tier === 'lite' || subscription.tier === 'pro')
+                && !!subscription.stripe_subscription_id;
+        }
+
+        /**
+         * PROD-53: label the in-app Pricing page buttons for the user's current plan.
+         */
+        function updatePricingButtons(subscription) {
+            const currentTier = hasPaidSubscription(subscription) ? subscription.tier : null;
+            const buttons = [
+                { tier: 'lite', id: 'pricingLiteBtn', subscribe: 'Subscribe to Lite', switchTo: 'Switch to Lite' },
+                { tier: 'pro', id: 'pricingProBtn', subscribe: 'Subscribe to Pro', switchTo: 'Switch to Pro' }
+            ];
+            buttons.forEach(b => {
+                const btn = document.getElementById(b.id);
+                if (!btn) return;
+                if (currentTier === b.tier) {
+                    btn.textContent = 'Current plan';
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = currentTier ? b.switchTo : b.subscribe;
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        /**
          * Start checkout for a specific tier
          * @param {string} tier - 'lite' or 'pro'
          */
         async function startCheckout(tier) {
             closeUpgradeModal();
+
+            // PROD-53: people who already pay change plans in the Stripe customer portal.
+            // A new Checkout session would start a second subscription and keep billing the first one.
+            const currentSubscription = await getUserSubscription();
+            if (hasPaidSubscription(currentSubscription)) {
+                if (currentSubscription.tier === tier) {
+                    toastInfo(`You're already on the ${tier === 'pro' ? 'Pro' : 'Lite'} plan.`);
+                    return;
+                }
+                toastInfo('Opening Manage Subscription, where you can switch plans.');
+                await openCustomerPortal();
+                return;
+            }
             
             const priceId = STRIPE_PRICES[tier];
             if (!priceId || priceId.includes('REPLACE')) {
@@ -5103,6 +5159,9 @@
                 if (upgradeAction) {
                     upgradeAction.style.display = tier === 'pro' ? 'none' : 'flex';
                 }
+
+                // PROD-53: "Current plan" / "Switch to" labels on the Pricing page
+                updatePricingButtons(subscription);
                 
             } catch (error) {
                 console.error('Error updating usage display:', error);
