@@ -4674,8 +4674,8 @@
             
             const actionLabels = {
                 analyses: 'job analyses',
-                resumes: 'resume generation',
-                covers: 'cover letter generations'
+                resumes: 'resumes',
+                covers: 'cover letters'
             };
             
             const notAvailableMessages = {
@@ -4702,6 +4702,14 @@
             } else if (reason === 'not_available') {
                 title = "You're Building Momentum";
                 message = notAvailableMessages[actionType] || `Your <strong>${tier.charAt(0).toUpperCase() + tier.slice(1)}</strong> plan doesn't include ${actionLabel}. Keep the momentum — upgrade to unlock this feature.`;
+            } else if (tier === 'lite') {
+                // PROD-54: paying Lite users get a monthly allowance, not a trial
+                title = "You're Building Momentum";
+                const resetDate = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+                const resetText = resetDate && resetDate > new Date()
+                    ? ` Your allowance resets on <strong>${resetDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</strong>.`
+                    : '';
+                message = `You've used all <strong>${limit} ${actionLabel}</strong> for this billing period.${resetText} Need more now? Upgrade to Pro for unlimited resumes and cover letters.`;
             } else {
                 title = "You're Building Momentum";
                 message = `You've used all <strong>${limit} ${actionLabel}</strong> in your trial. Keep the momentum — upgrade to get more out of every application.`;
