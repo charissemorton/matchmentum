@@ -7302,30 +7302,14 @@ Return ONLY the JSON.`;
             try {
                 const text = await extractTextFromFile(file);
                 const tempProfile = await parseResumeText(text);
-                const autoMergedR = autoMergeNewItems(profileData, tempProfile);
+                // PROD-41: start from the profile plus any unsaved edits in the review form,
+                // then merge the new resume on top so both are kept
+                const reviewForm  = readReviewForm();
+                const baseR       = reviewForm ? { ...profileData, ...reviewForm } : profileData;
+                const autoMergedR = autoMergeNewItems(baseR, tempProfile);
                 const conflicts   = detectUploadConflicts(autoMergedR, tempProfile);
 
                 if (conflicts.length === 0) {
-                    // Preserve any unsaved edits the user made in the review form
-                    // by merging them into the auto-merged result before assigning.
-                    // Only applies if the review form is currently rendered (review-name exists).
-                    const reviewName = document.getElementById('review-name');
-                    if (reviewName) {
-                        autoMergedR = {
-                            ...autoMergedR,
-                            name:              document.getElementById('review-name')?.value ?? autoMergedR.name,
-                            email:             document.getElementById('review-email')?.value ?? autoMergedR.email,
-                            phone:             document.getElementById('review-phone')?.value ?? autoMergedR.phone,
-                            location:          document.getElementById('review-location')?.value ?? autoMergedR.location,
-                            linkedin:          document.getElementById('review-linkedin')?.value ?? autoMergedR.linkedin,
-                            experience:        readJobCards('review-experience-cards'),
-                            skills:            parseSkillsText(document.getElementById('review-skills')?.value ?? ''),
-                            projects:          parseProjectsText(document.getElementById('review-projects')?.value ?? ''),
-                            education:         document.getElementById('review-education')?.value ?? autoMergedR.education,
-                            certifications:    parseCertificationsText(document.getElementById('review-certifications')?.value ?? ''),
-                            backgroundContext: document.getElementById('review-background-context')?.value ?? autoMergedR.backgroundContext
-                        };
-                    }
                     // No conflicts — use auto-merged result and save immediately
                     profileData = autoMergedR;
                     await safeStorageSet('job-assistant-profile', JSON.stringify(profileData));
@@ -7445,6 +7429,18 @@ Return ONLY the JSON.`;
             return overlap / smaller.size >= threshold;
         }
 
+        // Contact fields merged from an uploaded resume, with their conflict-card labels
+        const CONTACT_FIELDS = { name: 'Name', email: 'Email', phone: 'Phone', location: 'Location', linkedin: 'LinkedIn' };
+
+        // Comparison key for a contact value, so formatting-only differences
+        // ("(512) 555-1234" vs "+1 512-555-1234", "Austin, TX" vs "austin tx") count as the same value
+        function _contactKey(field, value) {
+            let v = (value || '').toString().trim().toLowerCase();
+            if (field === 'phone') return v.replace(/\D/g, '').slice(-10);
+            if (field === 'linkedin') v = v.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+            return v.replace(/[^a-z0-9@]/g, '');
+        }
+
         // Silently merge items from incoming that don't exist in existing.
         // Returns the merged profile without saving — no user input needed for pure additions.
         function autoMergeNewItems(existing, incoming) {
@@ -7452,15 +7448,11 @@ Return ONLY the JSON.`;
             const inc = incoming || {};
             const updated = { ...ex };
 
-            // Contact fields — auto-resolve to most complete (longer) value
-            for (const field of ['name', 'email', 'phone', 'location', 'linkedin']) {
+            // Contact fields — fill blanks only; different values become conflict cards (PROD-41)
+            for (const field of Object.keys(CONTACT_FIELDS)) {
                 const cur = (ex[field] || '').toString().trim();
                 const nw  = (inc[field] || '').toString().trim();
-                if (!cur && nw) {
-                    updated[field] = nw;
-                } else if (cur && nw && nw.length > cur.length) {
-                    updated[field] = nw;
-                }
+                if (!cur && nw) updated[field] = nw;
             }
 
             // Experience roles not in existing
@@ -7516,7 +7508,14 @@ Return ONLY the JSON.`;
             const ex = existing || {};
             const inc = incoming || {};
 
-            // Contact fields are auto-resolved in autoMergeNewItems (most complete wins) — no conflict cards
+            // 0. Contact fields — card when both have a value and they differ beyond formatting
+            for (const [field, label] of Object.entries(CONTACT_FIELDS)) {
+                const cur = (ex[field]  || '').toString().trim();
+                const nw  = (inc[field] || '').toString().trim();
+                if (cur && nw && _contactKey(field, cur) !== _contactKey(field, nw)) {
+                    conflicts.push({ id: `contact_${field}`, label, section: 'contact', field, type: 'conflict', current: cur, incoming: nw });
+                }
+            }
 
             // 1. Experience — identity: header fuzzy-match at 0.7; conflict: content fuzzy-match below 0.92
             // Two-stage: same role identity (title+company) but substantially different description → card.
@@ -7664,7 +7663,9 @@ Return ONLY the JSON.`;
                     const section = conflict.section;
 
                     if (conflict.type === 'conflict' && choice === 'use') {
-                        if (section === 'experience') {
+                        if (section === 'contact') {
+                            updated[conflict.field] = conflict.incoming;
+                        } else if (section === 'experience') {
                             const roles = _splitExperience(experienceToText(updated.experience));
                             const idx   = roles.findIndex(r => _fuzzyMatch(_headerKey(r), _headerKey(conflict.current), 0.7));
                             if (idx >= 0) roles[idx] = conflict.incoming; else roles.push(conflict.incoming);
@@ -8358,6 +8359,27 @@ Return ONLY the JSON.`;
             renderJobCards('review-experience-cards', profileData.experience);
         }
 
+        /**
+         * Read the Review Your Profile form into profile fields.
+         * Returns null when the form isn't rendered.
+         */
+        function readReviewForm() {
+            if (!document.getElementById('review-name')) return null;
+            return {
+                name: document.getElementById('review-name').value,
+                email: document.getElementById('review-email').value,
+                phone: document.getElementById('review-phone').value,
+                location: document.getElementById('review-location').value,
+                linkedin: document.getElementById('review-linkedin').value,
+                experience: readJobCards('review-experience-cards'),
+                skills: parseSkillsText(document.getElementById('review-skills').value),
+                projects: parseProjectsText(document.getElementById('review-projects').value),
+                education: document.getElementById('review-education').value,
+                certifications: parseCertificationsText(document.getElementById('review-certifications').value),
+                backgroundContext: document.getElementById('review-background-context').value
+            };
+        }
+
         async function confirmProfile() {
             // Block if the user has unresolved conflict cards
             if (_pendingConflicts && _pendingConflicts.length > 0) {
@@ -8368,17 +8390,8 @@ Return ONLY the JSON.`;
             }
 
             // Get values from review fields
-            const name = document.getElementById('review-name').value;
-            const email = document.getElementById('review-email').value;
-            const phone = document.getElementById('review-phone').value;
-            const location = document.getElementById('review-location').value;
-            const linkedin = document.getElementById('review-linkedin').value;
-            const experience = readJobCards('review-experience-cards');
-            const skills = document.getElementById('review-skills').value;
-            const projects = document.getElementById('review-projects').value;
-            const education = document.getElementById('review-education').value;
-            const certifications = document.getElementById('review-certifications').value;
-            const backgroundContext = document.getElementById('review-background-context').value;
+            const form = readReviewForm();
+            const { name, email, phone, linkedin } = form;
             
             // Validate required fields
             if (!validators.required(name)) {
@@ -8409,17 +8422,7 @@ Return ONLY the JSON.`;
             // Update profile data
             profileData = {
                 metadata: { version: "2.0" },
-                name: name,
-                email: email,
-                phone: phone,
-                location: location,
-                linkedin: linkedin,
-                experience: experience,
-                skills: parseSkillsText(skills),
-                projects: parseProjectsText(projects),
-                education: education,
-                certifications: parseCertificationsText(certifications),
-                backgroundContext: backgroundContext
+                ...form
             };
             
             // Save to storage (both local and cloud)
