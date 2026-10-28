@@ -9962,10 +9962,27 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
             `;
         }
 
+        // Job analysis qualifications for the resume prompts: one line per required or preferred
+        // qualification, with the credit earned and the evidence. Older analyses store plain strings.
+        function formatQualificationsForResume(analysis) {
+            const lines = [];
+            for (const [label, bucket] of [['Required', analysis.requiredQuals], ['Preferred', analysis.preferredQuals]]) {
+                for (const d of (bucket?.details || [])) {
+                    if (typeof d === 'string') {
+                        if (d.trim()) lines.push(`- ${label}: ${d.trim()}`);
+                    } else if (d?.qualification) {
+                        const credit = d.creditPercent != null ? ` (credit earned: ${d.creditPercent}%)` : '';
+                        lines.push(`- ${label}: ${d.qualification}${credit}${d.assessment ? ` - ${d.assessment}` : ''}`);
+                    }
+                }
+            }
+            return lines.length ? lines.join('\n') : '- None listed';
+        }
+
         // CHUNK 1: Professional Summary + Core Competencies
+        // experience: normalized role array from _normalizeExperienceForResume; skills: profile skills text
         async function generateSummarySection(contact, experience, skills, jobInfo) {
-            const experiencePreview = typeof experience === 'string' ? experience.substring(0, 500) : 'See work history';
-            const skillsPreview = typeof skills === 'string' ? skills.substring(0, 300) : 'Various skills';
+            const workHistory = experienceToText(experience);
             
             const prompt = `Generate a professional summary and core competencies section for a resume.
 
@@ -9976,16 +9993,20 @@ Phone: ${contact.phone}
 ${contact.location ? `Location: ${contact.location}` : ''}
 ${contact.linkedin ? `LinkedIn: ${contact.linkedin}` : ''}
 
-EXPERIENCE PREVIEW: ${experiencePreview}
+WORK HISTORY:
+${workHistory}
 
-SKILLS PREVIEW: ${skillsPreview}
+SKILLS:
+${skills || ''}
 
 TARGET JOB:
 - Title: ${jobInfo.title}
 - Company: ${jobInfo.company}
 - Match Score: ${jobInfo.matchScore}%
-- Top Strengths: ${jobInfo.topStrengths.join(', ')}
-- Key Requirements: ${jobInfo.keyRequirements.join(', ')}
+- Strengths: ${jobInfo.strengths.join(', ')}
+
+JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence):
+${jobInfo.qualifications}
 
 CRITICAL REQUIREMENTS - READ CAREFULLY:
 
@@ -9997,19 +10018,21 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
    IMPORTANT: Include this header ONLY ONCE at the very top.
 
 2. Professional Summary (3-4 sentences):
-   - Use ONLY information from the experience preview above
+   - Use ONLY information from the work history above
    - Lead with years of experience and core expertise
+   - Where the work history supports it, reflect the job qualifications the candidate earned credit for
    - Highlight 2-3 key achievements that are actually mentioned in experience
-   - NEVER invent accomplishments, metrics, or skills not in the preview
+   - NEVER invent accomplishments, metrics, or skills not in the work history or skills list
    - Be direct: "I do X, Y, Z" not "I am an expert with proven track record"
    
 3. Core Competencies:
-   - List ONLY skills explicitly mentioned in the skills preview above
+   - List ONLY skills explicitly mentioned in the skills list above
+   - Favor skills that match job qualifications the candidate earned credit for
    - NEVER add skills from the job description that aren't in candidate's background
    - NEVER invent technologies, tools, or methodologies not mentioned
    - Group by theme (e.g., "Operations & Implementation: Jira | Confluence | Agile")
    - 4-6 grouped categories maximum
-   - If uncertain whether a skill is in the preview, leave it out
+   - If uncertain whether a skill is in the skills list, leave it out
 
 4. Tone - AVOID AI CLICHÉS:
    - BANNED WORDS: "spearheaded", "orchestrated", "game-changing", "proven track record", "rockstar", "synergy", "leverage", "deep dive"
@@ -10038,10 +10061,12 @@ RECENT WORK HISTORY:
 ${experienceText}
 
 TARGET JOB: ${jobInfo.title} at ${jobInfo.company}
-KEY REQUIREMENTS: ${jobInfo.keyRequirements.join(', ')}
+
+JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence). Surface the ones the candidate earned credit for wherever the work history above truthfully supports them; never claim one it doesn't:
+${jobInfo.qualifications}
 
 CONFIRMED PROFILE STRENGTHS (these matched the job — ensure they appear in the resume where truthfully supported by the work history):
-${jobInfo.matchedStrengths.map(s => `- ${s}`).join('\n')}
+${jobInfo.strengths.map(s => `- ${s}`).join('\n')}
 
 CRITICAL ANTI-FABRICATION REQUIREMENTS:
 
@@ -10110,8 +10135,11 @@ ${experienceText}
 
 TARGET JOB: ${jobInfo.title}
 
+JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence). Surface the ones the candidate earned credit for wherever the work history above truthfully supports them; never claim one it doesn't:
+${jobInfo.qualifications}
+
 CONFIRMED PROFILE STRENGTHS (these matched the job — if the work history below supports any of these, make sure they surface):
-${jobInfo.matchedStrengths.map(s => `- ${s}`).join('\n')}
+${jobInfo.strengths.map(s => `- ${s}`).join('\n')}
 
 CRITICAL REQUIREMENTS:
 
@@ -10151,12 +10179,10 @@ Format your response in markdown. Do not include the word "markdown" in your res
 
         // CHUNK 4: Projects Section
         async function generateProjectsSection(projects, jobInfo) {
-            const projectsText = typeof projects === 'string' ? projects.substring(0, 1500) : JSON.stringify(projects, null, 2).substring(0, 1500);
-            
             const prompt = `Generate a Projects section for resume.
 
 PROJECTS FROM CANDIDATE'S PROFILE:
-${projectsText}
+${projects}
 
 TARGET JOB: ${jobInfo.title}
 
@@ -10193,16 +10219,13 @@ Format your response in markdown. Use ## PROJECTS as header. If no projects in p
 
         // CHUNK 5: Education & Certifications
         async function generateEducationSection(education, certifications) {
-            const eduText = typeof education === 'string' ? education.substring(0, 800) : JSON.stringify(education, null, 2).substring(0, 800);
-            const certText = typeof certifications === 'string' ? certifications.substring(0, 1200) : JSON.stringify(certifications, null, 2).substring(0, 1200);
-            
             const prompt = `Generate Education and Certifications sections.
 
 EDUCATION FROM CANDIDATE'S PROFILE:
-${eduText}
+${education || ''}
 
 CERTIFICATIONS FROM CANDIDATE'S PROFILE:
-${certText}
+${certifications || ''}
 
 🚨 CRITICAL ANTI-FABRICATION REQUIREMENTS - READ CAREFULLY 🚨
 
@@ -10395,19 +10418,19 @@ Return ONLY valid JSON:
                     title: currentAnalysis.jobTitle,
                     company: currentAnalysis.company || 'target company',
                     matchScore: currentAnalysis.matchScore,
-                    topStrengths: currentAnalysis.strengths?.slice(0, 5) || [],
-                    keyRequirements: (currentAnalysis.requiredQuals?.details || [])
-                        .slice(0, 8)
-                        .map(d => typeof d === 'string' ? d : (d && d.qualification) || '')
-                        .filter(Boolean),
-                    matchedStrengths: currentAnalysis.strengths || []
+                    strengths: currentAnalysis.strengths || [],
+                    qualifications: formatQualificationsForResume(currentAnalysis)
                 };
+
+                // Repair and date-order roles once; the summary and experience sections all use this list.
+                // List position alone can't be trusted.
+                const experienceArray = _normalizeExperienceForResume(profileForResume.experience);
                 
                 // CHUNK 1: Summary + Competencies
                 updateResumeProgress('Generating professional summary...', 15);
                 const summarySection = await generateSummarySection(
                     essentialProfile,
-                    profileForResume.experience,
+                    experienceArray,
                     profileForResume.skills,
                     jobInfo
                 );
@@ -10415,8 +10438,6 @@ Return ONLY valid JSON:
                 // CHUNK 2 & 3: Split experience by date (10-year window) then by recency
                 const tenYearsAgo = new Date();
                 tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
-                // Repair and date-order roles before slotting: list position alone can't be trusted.
-                const experienceArray = _normalizeExperienceForResume(profileForResume.experience);
                 const filteredExperience = experienceArray.filter(role => {
                     const end = _expDateValue(role.endDate, true); // blank/Present → Infinity
                     return isFinite(end) ? end >= tenYearsAgo.getTime() : true; // current or unreadable → keep, never drop silently
