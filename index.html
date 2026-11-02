@@ -6438,10 +6438,11 @@
             
             if (!user) {
                 debugLog('No user logged in, skipping cloud save');
-                return false;
+                return null;
             }
 
             try {
+                // PROD-48: return the new row's UUID so the page list uses the same ID as the database
                 const { data, error } = await supabase
                     .from('user_documents')
                     .insert({
@@ -6452,20 +6453,22 @@
                         content: content,
                         ats_score: atsScore,
                         ats_analysis: atsAnalysis
-                    });
+                    })
+                    .select('id')
+                    .single();
 
                 if (error) {
                     console.error('Error saving document to cloud:', error);
-                    return false;
+                    return null;
                 }
 
                 debugLog(`✅ ${documentType} saved to cloud`);
                 showCloudSyncIndicator('Document saved');
-                return true;
+                return data?.id || null;
 
             } catch (error) {
                 console.error('Error saving document to cloud:', error);
-                return false;
+                return null;
             }
         }
 
@@ -6606,9 +6609,9 @@
         }
 
         // Add file to generated files list
-        async function addGeneratedFile(type, jobTitle, content, atsScore = null) {
+        async function addGeneratedFile(type, jobTitle, content, atsScore = null, cloudId = null) {
             const file = {
-                id: Date.now(),
+                id: cloudId || Date.now(), // PROD-48: database UUID when the cloud save worked
                 type: type, // 'resume' or 'coverLetter'
                 jobTitle: jobTitle,
                 company: currentAnalysis?.company || null,
@@ -6696,18 +6699,27 @@
                     const supabase = getSupabase();
                     const { data: { user } } = await supabase.auth.getUser();
 
-                    if (user) {
+                    // PROD-48: only database UUIDs exist in user_documents. A numeric ID means the
+                    // cloud save never happened, so there is nothing to delete there.
+                    const isCloudId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(fileId));
+
+                    if (user && isCloudId) {
+                        let deleteError = null;
                         try {
-                            if (supabase) {
-                                await supabase
-                                    .from('user_documents')
-                                    .delete()
-                                    .eq('id', fileId)
-                                    .eq('user_id', user.id);
-                            }
+                            const { error } = await supabase
+                                .from('user_documents')
+                                .delete()
+                                .eq('id', fileId)
+                                .eq('user_id', user.id);
+                            deleteError = error;
                         } catch (error) {
-                            console.error('Error deleting from cloud:', error);
-                            // Continue with local delete even if cloud fails
+                            deleteError = error;
+                        }
+                        if (deleteError) {
+                            // Keep the file in the list so it doesn't vanish now and reappear after a refresh
+                            console.error('Error deleting from cloud:', deleteError);
+                            showToast("We couldn't delete this file. Please try again.", 'error', 5000, 'Delete failed');
+                            return;
                         }
                     }
 
@@ -10505,8 +10517,9 @@ Return ONLY valid JSON:
                 currentResumeATS = atsAnalysis;
                 
                 // Save to generated files
-                await addGeneratedFile('resume', currentAnalysis.jobTitle, fullResume, atsAnalysis?.overallScore);
-                await saveDocumentToCloud('resume', currentAnalysis.jobTitle, currentAnalysis.company || 'Unknown Company', fullResume, atsAnalysis?.overallScore, atsAnalysis);
+                // PROD-48: save to the cloud first so the page list gets the database ID
+                const savedResumeId = await saveDocumentToCloud('resume', currentAnalysis.jobTitle, currentAnalysis.company || 'Unknown Company', fullResume, atsAnalysis?.overallScore, atsAnalysis);
+                await addGeneratedFile('resume', currentAnalysis.jobTitle, fullResume, atsAnalysis?.overallScore, savedResumeId);
                 renderWelcomeDashboard();
                 
                 // Increment usage counter after successful generation
@@ -10719,8 +10732,9 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                 currentCoverLetterText = coverLetter;
 
                 // Save to generated files
-                await addGeneratedFile('coverLetter', currentAnalysis.jobTitle, coverLetter);
-                await saveDocumentToCloud('cover_letter', currentAnalysis.jobTitle, currentAnalysis.company || 'Unknown Company', coverLetter);
+                // PROD-48: save to the cloud first so the page list gets the database ID
+                const savedCoverId = await saveDocumentToCloud('cover_letter', currentAnalysis.jobTitle, currentAnalysis.company || 'Unknown Company', coverLetter);
+                await addGeneratedFile('coverLetter', currentAnalysis.jobTitle, coverLetter, null, savedCoverId);
 
                 // Increment usage counter after successful generation
                 await incrementUsage('covers');
