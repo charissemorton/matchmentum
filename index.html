@@ -5037,6 +5037,9 @@
             // analyze via the onShown callback — fires only after the section is
             // actually shown, and never if an anonymous user is bounced to signup.
             showSection('job-analysis-section', () => {
+                // Clear the homepage box only once the hand-off has happened, so the
+                // user's text isn't lost if navigation is blocked (signup bounce).
+                input.value = '';
                 const jobInput = document.getElementById('job-description');
                 if (jobInput) jobInput.value = jd;
                 analyzeJob();
