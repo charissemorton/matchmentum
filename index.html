@@ -6953,13 +6953,25 @@
             const gatedSections = ['setup-section', 'review-section', 'job-analysis-section', 'generated-files-section', 'help-section', 'find-role-section'];
             if (gatedSections.includes(sectionId)) {
                 const supabase = getSupabase();
-                supabase.auth.getUser().then(({ data: { user } }) => {
+                const connectionFailed = () => showToast("Couldn't connect. Please check your connection and try again.", 'error');
+                supabase.auth.getUser().then(({ data: { user }, error }) => {
+                    // A dropped connection or Supabase outage comes back as
+                    // AuthRetryableFetchError with no user. Don't treat it as signed out;
+                    // keep the user on their current screen.
+                    if (error && error.name === 'AuthRetryableFetchError') {
+                        connectionFailed();
+                        return;
+                    }
                     if (!user) {
                         showAuthModal('signup');
                         return;
                     }
                     _doShowSection(sectionId);
                     if (typeof onShown === 'function') onShown();
+                }, (err) => {
+                    // The login check itself failed unexpectedly.
+                    console.error('showSection auth check failed:', err);
+                    connectionFailed();
                 });
                 return;
             }
