@@ -4348,10 +4348,11 @@
         // ========================================
         
         /**
-         * Debug mode - set to false for production
-         * Controls console.log output (console.error always shows)
+         * Debug mode - on only for staging and local testing, off everywhere else
+         * (including matchmentum.com). Controls debugLog() console output and the
+         * internal analyses_log error toasts (console.error always shows).
          */
-        const DEBUG = true; // Set to false for production
+        const DEBUG = ['matchmentum-staging.netlify.app', 'localhost', '127.0.0.1'].includes(window.location.hostname);
         
         /**
          * Debug logging helper
