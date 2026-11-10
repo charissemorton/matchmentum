@@ -17,6 +17,7 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 
 ### Changed
 - PROD-50: The "Read Guidelines" link in the footer notice under the app now says Help & Support and opens the Help & Support page.
+- PROD-33: A resume upload that can't be processed now shows the same message on Setup and Review Profile: "We couldn't read that file. Please try again, or enter your details by hand." Setup used to say "Error processing documents. Please try again." Review Profile said "Error processing file. Please try again or use manual entry," though that screen has no Manual Entry button.
 
 ### Removed
 - PROD-50: About & Guidelines page (`about-section`). Its score explainer and privacy points moved into the Help & Support FAQ. The "What it does / doesn't do" grid and responsibilities list repeated the acknowledgment every user sees before their first resume.
