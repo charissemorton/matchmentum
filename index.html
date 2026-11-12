@@ -6210,6 +6210,7 @@
         let lkJobSource = null;
         let currentSessionGapContext = false; // true only after gap modal submitted in current analysis session
         let _gapQuestions = []; // [{ question, gap }] for the open gap modal; answers map to gaps through this, not by position
+        let _gapDrafts = []; // [{ answer, job, when, role }] captured at Save answers so "Go back and edit" can refill the questions
         let _pendingIncomingProfile   = null; // incoming profile awaiting conflict resolution
         let _pendingAutoMergedProfile = null; // base profile with new items already merged in
         let _pendingConflicts = [];           // array of {id, label, section, type, current?, incoming}
@@ -9061,6 +9062,9 @@ Return ONLY the JSON.`;
             resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>${isGapReanalysis ? 'Re-analyzing with your updated profile...' : 'Analyzing job match...'}</p></div>`;
 
             try {
+                // PROD-65: identity and contact fields are not used in grading. Leaving them
+                // out keeps the model from referring to the user by name.
+                const { name: _n, email: _e, phone: _p, linkedin: _l, contact: _c, ...analysisProfile } = profileData || {};
                 const systemPrompt = `You are an experienced recruiter analyzing job match quality using a calibrated scoring system.
 
 YOUR JOB IS GRADING, NOT ARITHMETIC:
@@ -9221,7 +9225,12 @@ IMPORTANT GUIDELINES:
 8. Certifications listed as "preferred" should not significantly impact score if missing
 
 Candidate Profile:
-${JSON.stringify(profileData)}
+${JSON.stringify(analysisProfile)}
+
+WRITING VOICE (applies to every assessment, strength, gap and recommendation):
+The person reading this analysis is the candidate. Write to them, not about them.
+Use "you" and "your", or write without a subject as the sample assessments do.
+Never refer to the candidate by name, as "the candidate", or as he, she or they.
 
 Return ONLY the raw JSON object below — no preamble, no explanation, no markdown fences. Your entire response must be valid JSON starting with { and ending with }.
 
@@ -9604,8 +9613,8 @@ EXAMPLE OUTPUT (abbreviated - a posting with three required and one preferred qu
                 <div style="text-align: center; padding: 40px 0; color: #64748b;">
                     <p>Looking at your gaps...</p>
                 </div>`;
-            document.getElementById('gap-save-btn').textContent = 'Save answers';
-            document.getElementById('gap-save-btn').onclick = saveGapAnswers;
+            _showGapQuestionScreen();
+            _gapDrafts = [];
 
             const gaps = currentAnalysis.gaps || [];
             const gapsText = gaps.map((g, i) => `${i + 1}. ${g}`).join('\n');
@@ -9631,12 +9640,7 @@ Example input:
 Example output:
 [{"gap": 1, "question": "What have you set up or customized in Salesforce, even informally?"}, {"gap": 2, "question": "Tell us about a time you led, coached or onboarded other people, even without a manager title."}]`;
 
-            // Jobs the user can attach an answer to (role array only; text-format profiles get "Somewhere else" only)
-            const gapJobs = Array.isArray(profileData?.experience)
-                ? profileData.experience
-                    .map((r, idx) => ({ idx, label: [r?.title, r?.company].filter(Boolean).join(', ') }))
-                    .filter(j => j.label)
-                : [];
+            const gapJobs = _getGapJobs();
 
             callClaudeAPI(prompt, 'Generate gap questions.')
                 .then(response => {
@@ -9658,29 +9662,7 @@ Example output:
                     }
                     questions = questions.slice(0, 4);
                     _gapQuestions = questions;
-                    const jobOptions = gapJobs.map(j => `<option value="${j.idx}">${escapeHtml(j.label)}</option>`).join('');
-                    document.getElementById('gap-questions').innerHTML = `
-                        <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">
-                            Answer what applies. Skip anything that doesn't — only what you answer will be added to your profile.
-                        </p>
-                        ${questions.map((q, i) => `
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 6px; line-height: 1.4;">${escapeHtml(q.question)}</label>
-                                <textarea id="gap-answer-${i}" placeholder="Describe what you've done..." style="width: 100%; min-height: 72px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
-                                ${gapJobs.length ? `
-                                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                                    <label for="gap-job-${i}" style="font-size: 12px; color: #475569; white-space: nowrap;">Where did you do this?</label>
-                                    <select id="gap-job-${i}" onchange="toggleGapOtherFields(${i})" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155; font-family: inherit; background: white;">
-                                        ${jobOptions}
-                                        <option value="other" selected>Somewhere else, not one of these jobs</option>
-                                    </select>
-                                </div>` : ''}
-                                <div id="gap-other-${i}" style="display: flex; gap: 8px; margin-top: 6px;">
-                                    <input type="text" id="gap-when-${i}" placeholder="When? (e.g. 2024)" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
-                                    <input type="text" id="gap-role-${i}" placeholder="Role or context (optional)" style="flex: 2; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
-                                </div>
-                            </div>
-                        `).join('')}`;
+                    _renderGapQuestions(questions, gapJobs);
                 })
                 .catch(() => {
                     document.getElementById('gap-questions').innerHTML = `
@@ -9695,8 +9677,74 @@ Example output:
             if (other) other.style.display = (!sel || sel.value === 'other') ? 'flex' : 'none';
         }
 
+        // Jobs the user can attach an answer to (role array only; text-format profiles get "Somewhere else" only)
+        function _getGapJobs() {
+            return Array.isArray(profileData?.experience)
+                ? profileData.experience
+                    .map((r, idx) => ({ idx, label: [r?.title, r?.company].filter(Boolean).join(', ') }))
+                    .filter(j => j.label)
+                : [];
+        }
+
+        // Question screen footer: Save answers enabled, no back button
+        function _showGapQuestionScreen() {
+            const saveBtn = document.getElementById('gap-save-btn');
+            saveBtn.textContent = 'Save answers';
+            saveBtn.disabled = false;
+            saveBtn.onclick = saveGapAnswers;
+            const backBtn = document.getElementById('gap-back-btn');
+            if (backBtn) backBtn.remove();
+        }
+
+        // Draws the gap questions; drafts refill each answer, job choice, When and Role
+        function _renderGapQuestions(questions, gapJobs, drafts = []) {
+            const jobOptions = gapJobs.map(j => `<option value="${j.idx}">${escapeHtml(j.label)}</option>`).join('');
+            document.getElementById('gap-questions').innerHTML = `
+                <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">
+                    Answer what applies. Skip anything that doesn't — only what you answer will be added to your profile.
+                </p>
+                ${questions.map((q, i) => `
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 6px; line-height: 1.4;">${escapeHtml(q.question)}</label>
+                        <textarea id="gap-answer-${i}" placeholder="Describe what you've done..." style="width: 100%; min-height: 72px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+                        ${gapJobs.length ? `
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                            <label for="gap-job-${i}" style="font-size: 12px; color: #475569; white-space: nowrap;">Where did you do this?</label>
+                            <select id="gap-job-${i}" onchange="toggleGapOtherFields(${i})" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #334155; font-family: inherit; background: white;">
+                                ${jobOptions}
+                                <option value="other" selected>Somewhere else, not one of these jobs</option>
+                            </select>
+                        </div>` : ''}
+                        <div id="gap-other-${i}" style="display: flex; gap: 8px; margin-top: 6px;">
+                            <input type="text" id="gap-when-${i}" placeholder="When? (e.g. 2024)" style="flex: 1; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
+                            <input type="text" id="gap-role-${i}" placeholder="Role or context (optional)" style="flex: 2; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #64748b; font-family: inherit;">
+                        </div>
+                    </div>
+                `).join('')}`;
+            drafts.forEach((d, i) => {
+                const answer = document.getElementById(`gap-answer-${i}`);
+                if (!answer || !d) return;
+                answer.value = d.answer || '';
+                const sel = document.getElementById(`gap-job-${i}`);
+                if (sel && Array.from(sel.options).some(o => o.value === d.job)) sel.value = d.job;
+                const when = document.getElementById(`gap-when-${i}`);
+                if (when) when.value = d.when || '';
+                const role = document.getElementById(`gap-role-${i}`);
+                if (role) role.value = d.role || '';
+                toggleGapOtherFields(i);
+            });
+        }
+
+        // "Go back and edit": same questions with the user's answers, no new Claude call
+        function editGapAnswers() {
+            _showGapQuestionScreen();
+            _renderGapQuestions(_gapQuestions, _getGapJobs(), _gapDrafts);
+        }
+
         function closeGapModal() {
             document.getElementById('gap-modal').classList.remove('show');
+            const backBtn = document.getElementById('gap-back-btn');
+            if (backBtn) backBtn.remove();
         }
 
         async function saveGapAnswers() {
@@ -9724,6 +9772,14 @@ Example output:
                 }
                 answers.push(entry);
             });
+
+            // Keep everything entered so "Go back and edit" can refill it
+            _gapDrafts = Array.from(questions).map((textarea, i) => ({
+                answer: textarea.value,
+                job: document.getElementById(`gap-job-${i}`)?.value || '',
+                when: document.getElementById(`gap-when-${i}`)?.value || '',
+                role: document.getElementById(`gap-role-${i}`)?.value || ''
+            }));
 
             if (answers.length === 0 && jobAnswers.length === 0) {
                 closeGapModal();
@@ -9823,7 +9879,7 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
                     backBtn.id = 'gap-back-btn';
                     backBtn.className = 'btn-secondary';
                     backBtn.textContent = 'Go back and edit';
-                    backBtn.onclick = openGapModal;
+                    backBtn.onclick = editGapAnswers;
                     footer.insertBefore(backBtn, document.getElementById('gap-save-btn'));
                 }
             } catch(e) {
