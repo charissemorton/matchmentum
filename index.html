@@ -9061,6 +9061,9 @@ Return ONLY the JSON.`;
             resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div><p>${isGapReanalysis ? 'Re-analyzing with your updated profile...' : 'Analyzing job match...'}</p></div>`;
 
             try {
+                // PROD-65: identity and contact fields are not used in grading. Leaving them
+                // out keeps the model from referring to the user by name.
+                const { name: _n, email: _e, phone: _p, linkedin: _l, contact: _c, ...analysisProfile } = profileData || {};
                 const systemPrompt = `You are an experienced recruiter analyzing job match quality using a calibrated scoring system.
 
 YOUR JOB IS GRADING, NOT ARITHMETIC:
@@ -9221,7 +9224,12 @@ IMPORTANT GUIDELINES:
 8. Certifications listed as "preferred" should not significantly impact score if missing
 
 Candidate Profile:
-${JSON.stringify(profileData)}
+${JSON.stringify(analysisProfile)}
+
+WRITING VOICE (applies to every assessment, strength, gap and recommendation):
+The person reading this analysis is the candidate. Write to them, not about them.
+Use "you" and "your", or write without a subject as the sample assessments do.
+Never refer to the candidate by name, as "the candidate", or as he, she or they.
 
 Return ONLY the raw JSON object below — no preamble, no explanation, no markdown fences. Your entire response must be valid JSON starting with { and ending with }.
 

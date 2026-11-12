@@ -35,7 +35,7 @@ MatchMentum is a SaaS platform that helps job seekers optimize their resumes for
 - 📱 **Mobile Responsive** - Works on all devices
 
 ### Subscription Tiers
-- **Free** - 10 job analyses per month
+- **Free trial** - 7 days free: unlimited analyses, 3 resumes, no cover letters
 - **Lite** - $14.99/month - Unlimited analyses, 10 resumes/covers
 - **Pro** - $29.99/month - Everything unlimited
 
