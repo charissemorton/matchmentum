@@ -2586,6 +2586,183 @@
             background: #f9fafb;
         }
         
+        /* PROD-57: Delete Account section, dialog and lockout screen */
+        .account-section-danger {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 24px;
+        }
+
+        .account-danger-note {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin: 0 0 12px;
+        }
+
+        .account-button-danger {
+            background: white;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .account-button-danger:hover {
+            background: #fef2f2;
+        }
+
+        .account-button-danger-solid {
+            background: #dc2626;
+            color: white;
+        }
+
+        .account-button-danger-solid:hover {
+            background: #b91c1c;
+        }
+
+        .account-button:disabled,
+        .account-button:disabled:hover {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .delete-account-dialog {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-account-dialog.active {
+            display: flex;
+        }
+
+        .delete-account-dialog-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .delete-account-dialog-content h2 {
+            margin: 0 0 12px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .delete-account-dialog-content p {
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.5;
+            margin: 0 0 16px;
+        }
+
+        .delete-account-box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .delete-account-box p {
+            margin: 0 0 10px;
+        }
+
+        .delete-account-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .delete-account-box-info {
+            background: #eff6ff;
+            color: #1e3a8a;
+        }
+
+        .delete-account-box-warning {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .delete-account-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 6px;
+        }
+
+        .delete-account-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .delete-account-error {
+            color: #b91c1c;
+            font-size: 14px;
+            margin: 0 0 12px;
+        }
+
+        .delete-account-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .deletion-lockout {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #EEF2F7;
+            z-index: 10002;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .deletion-lockout.active {
+            display: flex;
+        }
+
+        .deletion-lockout-card {
+            background: white;
+            border-radius: 12px;
+            max-width: 440px;
+            width: 100%;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .deletion-lockout-card h2 {
+            margin: 0 0 12px;
+            font-size: 22px;
+            font-weight: 600;
+            color: #0F172A;
+        }
+
+        .deletion-lockout-card p {
+            font-size: 15px;
+            color: #374151;
+            line-height: 1.5;
+            margin: 0 0 16px;
+        }
+
+        .deletion-lockout-card a {
+            color: #2563eb;
+        }
+
         .account-profile-header {
             display: flex;
             justify-content: space-between;
@@ -5286,6 +5463,18 @@
                 // User is signed in — hide landing, show app
                 debugLog('User is signed in:', user.email);
 
+                // PROD-57: a pending deletion request shows only the lockout screen
+                const lockoutCheck = await getUserSubscription();
+                if (lockoutCheck && lockoutCheck.deletion_requested_at) {
+                    if (landingPage) landingPage.classList.remove('visible');
+                    appContainer.style.display = 'none';
+                    authButtons.style.display = 'none';
+                    userProfile.style.display = 'none';
+                    showDeletionLockout();
+                    return;
+                }
+                hideDeletionLockout();
+
                 // Check for pending consent from email signup flow
                 const pendingConsent = sessionStorage.getItem('pendingConsent');
                 if (pendingConsent) {
@@ -5354,6 +5543,7 @@
             } else {
                 // User is signed out — show landing page, hide app
                 debugLog('User is not signed in');
+                hideDeletionLockout();
                 
                 // Show auth buttons, hide user profile
                 authButtons.style.display = 'flex';
@@ -6935,6 +7125,7 @@
         }
 
         function showSection(sectionId, onShown) {
+            if (_accountDeletionLocked) return; // PROD-57: nothing is reachable while a deletion is pending
             // Clear JD synchronously so it's gone before any async auth check resolves
             if (sectionId === 'job-analysis-section') {
                 const textarea = document.getElementById('job-description');
@@ -6981,6 +7172,7 @@
         }
 
         function _doShowSection(sectionId) {
+            if (_accountDeletionLocked) return; // PROD-57
             // Hide all sections
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.remove('active');
@@ -11522,6 +11714,7 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
          * Open account settings modal
          */
         async function openAccountSettings() {
+            if (_accountDeletionLocked) return; // PROD-57
             const modal = document.getElementById('accountModal');
             modal.classList.add('active');
             
@@ -11642,6 +11835,136 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
         function closeAccountSettings() {
             const modal = document.getElementById('accountModal');
             modal.classList.remove('active');
+        }
+
+        // ========================================
+        // PROD-57: ACCOUNT DELETION REQUESTS
+        // ========================================
+        const ACCOUNT_DELETION_FN_URL = 'https://curious-rugelach-e5ffb8.netlify.app/.netlify/functions/request-account-deletion';
+        const DELETE_MSG_UNUSED = "Your deletion request has been received. Your account and all of its data will be permanently deleted within 72 hours.";
+        const DELETE_MSG_USED = "Your deletion request has been received. Within 72 hours, we'll permanently delete your profile, resumes, generated documents and analysis history. Because this account was used during a free trial, we keep a limited record to prevent misuse of free trials, as described in our Privacy Policy. This record doesn't include your resume or any personal details beyond what's needed for this purpose.";
+        const DELETE_ERR_STRIPE = "We couldn't cancel your subscription, so your account wasn't changed. Please try again, or email support@matchmentum.com.";
+        const DELETE_ERR_AUTH = "Please sign in again and retry.";
+        const DELETE_ERR_OTHER = "Something went wrong. Please try again, or email support@matchmentum.com.";
+
+        var _accountDeletionLocked = false; // var: read by showSection, which can run before this line
+        var _deleteInFlight = false;
+
+        async function openDeleteAccountDialog() {
+            const dialog = document.getElementById('deleteAccountDialog');
+            document.getElementById('deleteAccountForm').style.display = '';
+            document.getElementById('deleteAccountResult').style.display = 'none';
+            document.getElementById('deleteAccountConfirmInput').value = '';
+            document.getElementById('deleteAccountConfirmBtn').disabled = true;
+            document.getElementById('deleteAccountConfirmBtn').textContent = 'Delete Account';
+            _setDeleteAccountError('');
+
+            // Paid-plan warning and cancel-instead option: active Lite or Pro only
+            const subscription = await getUserSubscription();
+            const tier = subscription?.tier;
+            const isActivePaid = (tier === 'lite' || tier === 'pro') && subscription?.status === 'active';
+            document.getElementById('deleteAccountPaidWarning').style.display = isActivePaid ? '' : 'none';
+            document.getElementById('deleteAccountCancelInstead').style.display = isActivePaid ? '' : 'none';
+            if (isActivePaid) {
+                document.getElementById('deleteAccountPlanName').textContent = tier === 'pro' ? 'Pro' : 'Lite';
+                const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+                document.getElementById('deleteAccountRenewalDate').textContent = periodEnd && !isNaN(periodEnd)
+                    ? periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                    : 'your next renewal date';
+            }
+
+            dialog.classList.add('active');
+            document.getElementById('deleteAccountConfirmInput').focus();
+        }
+
+        function closeDeleteAccountDialog() {
+            if (_deleteInFlight) return;
+            document.getElementById('deleteAccountDialog').classList.remove('active');
+        }
+
+        function onDeleteAccountConfirmInput() {
+            const typed = document.getElementById('deleteAccountConfirmInput').value.trim();
+            document.getElementById('deleteAccountConfirmBtn').disabled = _deleteInFlight || typed !== 'DELETE';
+        }
+
+        function cancelSubscriptionInstead() {
+            closeDeleteAccountDialog();
+            closeAccountSettings();
+            openCustomerPortal();
+        }
+
+        function _setDeleteAccountError(message) {
+            const el = document.getElementById('deleteAccountError');
+            el.textContent = message;
+            el.style.display = message ? '' : 'none';
+        }
+
+        async function requestAccountDeletion() {
+            if (_deleteInFlight) return;
+            if (document.getElementById('deleteAccountConfirmInput').value.trim() !== 'DELETE') return;
+            _deleteInFlight = true;
+            _setDeleteAccountError('');
+            const confirmBtn = document.getElementById('deleteAccountConfirmBtn');
+            const keepBtn = document.getElementById('deleteAccountKeepBtn');
+            confirmBtn.disabled = true;
+            keepBtn.disabled = true;
+            confirmBtn.textContent = 'Deleting...';
+            try {
+                const supabase = getSupabase();
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) {
+                    _setDeleteAccountError(DELETE_ERR_AUTH);
+                    return;
+                }
+
+                let response;
+                let result = {};
+                try {
+                    response = await fetch(ACCOUNT_DELETION_FN_URL, {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + session.access_token }
+                    });
+                    result = await response.json().catch(() => ({}));
+                } catch (networkErr) {
+                    console.error('request-account-deletion network error:', networkErr);
+                    _setDeleteAccountError(DELETE_ERR_OTHER);
+                    return;
+                }
+
+                if (!response.ok) {
+                    console.error('request-account-deletion failed:', response.status, result);
+                    if (response.status === 401) _setDeleteAccountError(DELETE_ERR_AUTH);
+                    else if (response.status === 502) _setDeleteAccountError(DELETE_ERR_STRIPE);
+                    else _setDeleteAccountError(DELETE_ERR_OTHER);
+                    return;
+                }
+
+                // Request accepted: show the matching message, then sign out
+                document.getElementById('deleteAccountResultMessage').textContent = result.used ? DELETE_MSG_USED : DELETE_MSG_UNUSED;
+                document.getElementById('deleteAccountForm').style.display = 'none';
+                document.getElementById('deleteAccountResult').style.display = '';
+                closeAccountSettings();
+                await handleSignOut();
+            } catch (err) {
+                console.error('requestAccountDeletion error:', err);
+                _setDeleteAccountError(DELETE_ERR_OTHER);
+            } finally {
+                _deleteInFlight = false;
+                keepBtn.disabled = false;
+                confirmBtn.textContent = 'Delete Account';
+                onDeleteAccountConfirmInput();
+            }
+        }
+
+        function showDeletionLockout() {
+            _accountDeletionLocked = true;
+            document.getElementById('deletionLockout').classList.add('active');
+        }
+
+        function hideDeletionLockout() {
+            _accountDeletionLocked = false;
+            const el = document.getElementById('deletionLockout');
+            if (el) el.classList.remove('active');
         }
         
         /**
@@ -12219,10 +12542,62 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
                         </button>
                     </div>
                 </div>
+
+                <!-- PROD-57: Delete Account -->
+                <div class="account-section account-section-danger">
+                    <div class="account-section-title">Delete Account</div>
+                    <p class="account-danger-note">Permanently deletes your account and everything in it. To stop billing but keep your account, use Manage Subscription above.</p>
+                    <div class="account-actions">
+                        <button class="account-button account-button-danger" onclick="openDeleteAccountDialog()">
+                            Delete Account
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
+    <!-- PROD-57: Delete Account confirmation dialog -->
+    <div class="delete-account-dialog" id="deleteAccountDialog" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle" onclick="if(event.target === this) closeDeleteAccountDialog();">
+        <div class="delete-account-dialog-content">
+            <div id="deleteAccountForm">
+                <h2 id="deleteAccountTitle">Delete your account?</h2>
+                <p>We'll permanently delete your profile, resumes, cover letters and analysis history within 72 hours. You'll be signed out right away and won't be able to sign back in. This can't be undone.</p>
+                <div class="delete-account-box delete-account-box-info" id="deleteAccountCancelInstead" style="display:none;">
+                    <p>Just want to stop paying? Cancel your subscription instead. You'll keep your plan until <span id="deleteAccountRenewalDate">your next renewal date</span>, and your profile and documents stay saved.</p>
+                    <button class="account-button account-button-secondary" onclick="cancelSubscriptionInstead()">Cancel subscription instead</button>
+                </div>
+                <div class="delete-account-box delete-account-box-warning" id="deleteAccountPaidWarning" style="display:none;">
+                    <p>You have an active <span id="deleteAccountPlanName">Lite</span> subscription. Deleting your account cancels it immediately. Your current billing period ends today, and the remaining time won't be refunded.</p>
+                </div>
+                <label class="delete-account-label" for="deleteAccountConfirmInput">Type DELETE to confirm</label>
+                <input class="delete-account-input" id="deleteAccountConfirmInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="onDeleteAccountConfirmInput()">
+                <p class="delete-account-error" id="deleteAccountError" role="alert" style="display:none;"></p>
+                <div class="delete-account-actions">
+                    <button class="account-button account-button-secondary" id="deleteAccountKeepBtn" onclick="closeDeleteAccountDialog()">Keep my account</button>
+                    <button class="account-button account-button-danger-solid" id="deleteAccountConfirmBtn" onclick="requestAccountDeletion()" disabled>Delete Account</button>
+                </div>
+            </div>
+            <div id="deleteAccountResult" style="display:none;">
+                <h2>Deletion requested</h2>
+                <p id="deleteAccountResultMessage"></p>
+                <div class="delete-account-actions">
+                    <button class="account-button account-button-primary" onclick="closeDeleteAccountDialog()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROD-57: shown instead of the app while a deletion request is pending -->
+    <div class="deletion-lockout" id="deletionLockout" role="dialog" aria-modal="true" aria-labelledby="deletionLockoutTitle">
+        <div class="deletion-lockout-card">
+            <h2 id="deletionLockoutTitle">Deletion requested</h2>
+            <p>We received your request to delete your account. Your account and its data will be permanently deleted within 72 hours.</p>
+            <p>Questions? Email <a href="mailto:support@matchmentum.com">support@matchmentum.com</a>.</p>
+            <button class="account-button account-button-primary" onclick="handleSignOut()">Sign out</button>
+        </div>
+    </div>
+
     <!-- Upgrade Modal - Shown when user hits usage limit -->
     <div class="upgrade-modal" id="upgradeModal" onclick="if(event.target === this) closeUpgradeModal();">
         <div class="upgrade-modal-content">
@@ -12337,7 +12712,7 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
             { group: 'help-privacy', q: "Do you sell or share my information?",
               a: "No. We never sell your personal information or share it for marketing. The documents you generate belong to you." },
             { group: 'help-privacy', q: "How do I delete my account and data?",
-              a: "Email " + FAQ_SUPPORT_LINK + " from the address on your account and ask us to delete it. See the <a href=\"/privacy.html\" target=\"_blank\">Privacy Policy</a> for details on how your data is deleted." },
+              a: "Open Account Settings and select Delete Account. Your deletion request is processed within 72 hours, and your profile, documents and history are permanently removed. See the <a href=\"/privacy.html\" target=\"_blank\">Privacy Policy</a> for details." },
 
             // Using AI responsibly
             { group: 'help-ai', q: "Do I need to tell employers I used AI?",
