@@ -12,15 +12,20 @@ Changes ship whenever they pass testing on staging, with no fixed release day. H
 > Items logged here since last release. Move to a versioned section on release day.
 
 ### Added
+- PROD-51 (PROD-55, 56, 57): Users can request account deletion from Account Settings. The new Delete Account section opens a dialog that requires typing DELETE. Active Lite and Pro subscribers also see a "Cancel subscription instead" option with their renewal date, plus a warning that deleting cancels the plan immediately with no refund. Confirming calls the new `request-account-deletion` Netlify function (backend, on `main`), which sets `subscriptions.deletion_requested_at`, cancels any active Stripe subscription with no proration, and reports whether the account was used. The user sees the used or unused message and is signed out. Signing back in shows only a "Deletion requested" screen until the account is deleted. Nothing is deleted automatically: the weekday health check reports pending requests, and they're processed by hand within 72 hours (Confluence runbook "Processing account deletion requests").
+- PROD-55: Free-trial reuse block (database). A `BEFORE INSERT` trigger on `subscriptions` starts the trial already expired when the new user's email matches a deleted, used account in `trial_reuse_blocks`. Emails are stored only as an HMAC hash keyed from Supabase Vault; gmail.com addresses ignore dots and anything after "+". If the check fails for any reason, signup continues with a normal trial.
 - PROD-50: Help & Support page, in the sidebar slot where About & Guidelines was. It has 25 FAQ answers in six groups (Getting started, Plans and billing, Your Resume Readiness Score, Privacy and your data, Using AI responsibly, Account), topic buttons that jump to each group, and a "Still need help?" card with the support email. It replaces the earlier email-only sidebar link.
 - PROD-50: Common Questions section on the landing page, between Responsible Use and Pricing, with six questions for signed-out visitors and a link to email support. Answers come from one list (`FAQ_ITEMS`) shared with the Help & Support page, so a question on both pages always shows the same answer.
 
 ### Changed
+- PROD-57: The Help & Support answer to "How do I delete my account and data?" now points to Account Settings > Delete Account instead of emailing support.
+- PROD-58: Privacy Policy and Terms updated for account deletion (Effective Date November 15, 2026). Privacy: Deleted Accounts explains what's deleted and the limited record kept for used accounts; "How to Exercise Your Rights" and "Contact Us" point to Delete Account, with email as the backup. Terms: deleting an account cancels any active subscription immediately with no refund for the rest of the period.
 - PROD-44: README's Subscription Tiers listed the free plan as 10 job analyses per month. It now describes the 7-day free trial: unlimited analyses, 3 resumes, no cover letters. The Terms of Service already matched (updated with PROD-50).
 - PROD-50: The "Read Guidelines" link in the footer notice under the app now says Help & Support and opens the Help & Support page.
 - PROD-33: A resume upload that can't be processed now shows the same message on Setup and Review Profile: "We couldn't read that file. Please try again, or enter your details by hand." Setup used to say "Error processing documents. Please try again." Review Profile said "Error processing file. Please try again or use manual entry," though that screen has no Manual Entry button.
 
 ### Removed
+- PROD-58: The 7-Day Money-Back Guarantee in the Terms of Service (§8.2). It had been there since the first version but was never the intended policy; the 7-day free trial is the try-before-you-pay. Refunds are now at MatchMentum's discretion.
 - PROD-50: About & Guidelines page (`about-section`). Its score explainer and privacy points moved into the Help & Support FAQ. The "What it does / doesn't do" grid and responsibilities list repeated the acknowledgment every user sees before their first resume.
 
 ### Fixed
