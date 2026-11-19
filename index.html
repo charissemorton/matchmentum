@@ -10384,10 +10384,40 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
             return lines.length ? lines.join('\n') : '- None listed';
         }
 
+        // Total years of experience for the summary, computed here so the model never does the math.
+        // Overlapping roles are merged and gaps are skipped. Returns null when any role's dates can't be read.
+        function _summaryExperienceYears(experience) {
+            const roles = Array.isArray(experience) ? experience : [];
+            const now = Date.now();
+            const spans = [];
+            for (const r of roles) {
+                const start = _expDateValue(r.startDate, false);
+                let end = _expDateValue(r.endDate, true);
+                if (isNaN(start) || isNaN(end)) return null;
+                if (!isFinite(end) || end > now) end = now;
+                if (end > start) spans.push([start, end]);
+            }
+            if (!spans.length) return null;
+            spans.sort((a, b) => a[0] - b[0]);
+            let total = 0, curStart = spans[0][0], curEnd = spans[0][1];
+            for (const [st, en] of spans.slice(1)) {
+                if (st > curEnd) { total += curEnd - curStart; curStart = st; curEnd = en; }
+                else if (en > curEnd) curEnd = en;
+            }
+            total += curEnd - curStart;
+            return Math.floor(total / (365.25 * 24 * 60 * 60 * 1000));
+        }
+
         // CHUNK 1: Professional Summary + Core Competencies
         // experience: normalized role array from _normalizeExperienceForResume; skills: profile skills text
         async function generateSummarySection(contact, experience, skills, jobInfo) {
             const workHistory = experienceToText(experience);
+            const totalYears = _summaryExperienceYears(experience);
+            const yearsRule = totalYears >= 1
+                ? `${totalYears} years, computed from the role dates. If you state years of experience, write exactly "${totalYears}+ years". Never round up`
+                : totalYears === 0
+                    ? 'Less than 1 year. Do not state a number of years'
+                    : 'Could not be computed from the role dates. Do not state a number of years';
             
             const prompt = `Generate a professional summary and core competencies section for a resume.
 
@@ -10422,25 +10452,31 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
    
    IMPORTANT: Include this header ONLY ONCE at the very top.
 
-2. Professional Summary (3-4 sentences):
-   - Use ONLY information from the work history above
-   - Lead with years of experience and core expertise
+2. Professional Summary (2-3 sentences, no sentence over 25 words, so 75 words at most):
+   - Shorter is fine when the work history is short. NEVER pad to reach a length
+   - One idea per sentence. Do not chain ideas together with "including", "with a" or long lists
+   - Use ONLY information from the work history above (and the background context, if provided)
+   - First sentence: a job title the candidate has actually held, or a plain description of their work, plus years of experience. Never use the target job title as the candidate's title unless they have held it
+   - YEARS OF EXPERIENCE: ${yearsRule}
+   - Never state years for a specific role type, title, industry or skill (for example "4+ years in program management"). Only the total above may appear
+   - Pick the 1-2 strongest achievements for this job, each taken from the work history. The rest belong in the experience section
    - Where the work history supports it, reflect the job qualifications the candidate earned credit for
-   - Highlight 2-3 key achievements that are actually mentioned in experience
    - NEVER invent accomplishments, metrics, or skills not in the work history or skills list
-   - Be direct: "I do X, Y, Z" not "I am an expert with proven track record"
+   - Write without pronouns ("Built X", not "I built X"). Say what the candidate did; never describe their character or habits ("hands-on practitioner", "consistent pattern of")
    
-3. Core Competencies:
-   - List ONLY skills explicitly mentioned in the skills list above
+3. Core Competencies (relevant skills only, 15 maximum, up to 4 groups):
+   - A skill is a tool, technology, method, area of domain knowledge, or license/certification, usually 1-4 words (e.g., "Salesforce", "Change Management", "Medicare Claims"). Duties, padded phrases and personality traits ("Detail-Oriented") are not skills
+   - Take skills from the skills list above, or tools and methods named in the work history. You may shorten a skill to its standard name. NEVER invent one
+   - Include only skills related to the target job. Never copy the whole list
    - Favor skills that match job qualifications the candidate earned credit for
-   - NEVER add skills from the job description that aren't in candidate's background
-   - NEVER invent technologies, tools, or methodologies not mentioned
-   - Group by theme (e.g., "Operations & Implementation: Jira | Confluence | Agile")
-   - 4-6 grouped categories maximum
-   - If uncertain whether a skill is in the skills list, leave it out
-
+   - NEVER add skills from the job description that aren't in the candidate's background
+   - Fewer is fine. NEVER pad to reach a number. With 6 or fewer skills, use a single group
+   - Each group: the group name in bold on its own line, then its skills on the next line separated by " | "
+   - If uncertain whether a skill is in the candidate's background, leave it out
+   
 4. Tone - AVOID AI CLICHÉS:
-   - BANNED WORDS: "spearheaded", "orchestrated", "game-changing", "proven track record", "rockstar", "synergy", "leverage", "deep dive"
+   - BANNED WORDS AND PHRASES: "spearheaded", "orchestrated", "game-changing", "track record", "rockstar", "synergy", "leverage", "deep dive", "results-driven", "progressive experience", "from scratch", "consistent pattern", "hands-on practitioner", "scalable"
+   - No em dashes. Use a comma or a new sentence instead
    - Natural, professional, confident
    - Use clear, direct language
 
@@ -10448,6 +10484,24 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
    - Better to have a shorter, accurate summary than a padded one with fake information
    - User is legally responsible for accuracy - do not put false information
    - When in doubt, leave it out
+
+EXAMPLE (shows length and shape only. Never copy its content, numbers or skills):
+
+## Professional Summary
+
+Operations manager with 9+ years in hospital patient flow and scheduling. Cut average ER boarding time from 6 hours to 3.5 by redesigning bed assignment at a 400-bed hospital. Led the rollout of a new staffing system across 12 nursing units and trained 300 staff.
+
+---
+
+## Core Competencies
+
+**Patient Flow**
+Bed Management | ER Throughput | Discharge Planning
+
+**Systems**
+Epic | Kronos | Excel
+
+DO NOT WRITE LIKE THIS: "Results-driven operations leader with 15+ years of progressive experience across healthcare operations, patient flow and workforce management, including 6+ years leading enterprise programs, with a consistent pattern of delivering scalable solutions." (One 31-word sentence holding several ideas, a tenure claim for one role type, and filler phrases.)
 
 Format your response in markdown with contact header first, then summary, then competencies. Do not include the word "markdown" in your response.${profileData.backgroundContext ? `\n\nBACKGROUND CONTEXT (candidate-confirmed):\nThe candidate has provided the following context about their experience. It does not appear on their resume but is factually accurate and has been verified by the candidate. Use it to inform this section where relevant — do not fabricate beyond what is stated.\n${profileData.backgroundContext}` : ''}`;
 
