@@ -6248,8 +6248,117 @@
             });
         }
 
+        // PROD-59: plain-text copy of a markdown resume for pasting into application forms.
+        // Keeps section headers, bullets and line breaks; drops # headers, **bold**, *italic*,
+        // and --- separators (renderMarkdown and the DOCX skip those separators too).
+        function resumeMarkdownToPlainText(text) {
+            if (text === null || text === undefined) return '';
+            if (typeof text !== 'string') text = String(text);
+
+            const stripInline = (line) =>
+                line
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\*([^*\n]+)\*/g, '$1')
+                    .replace(/\*\*/g, '');
+
+            const out = [];
+            for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
+                const trimmed = raw.trim();
+
+                if (trimmed === '') {
+                    if (out.length && out[out.length - 1] !== '') out.push('');
+                    continue;
+                }
+                if (/^[-*_]{3,}$/.test(trimmed)) continue;
+
+                const headerMatch = trimmed.match(/^#{1,6}\s+(.+)$/);
+                if (headerMatch) { out.push(stripInline(headerMatch[1]).trim()); continue; }
+
+                const bulletMatch = trimmed.match(/^[-\u2022*]\s+(.+)$/);
+                if (bulletMatch) { out.push('\u2022 ' + stripInline(bulletMatch[1]).trim()); continue; }
+
+                out.push(stripInline(trimmed).trim());
+            }
+            while (out.length && out[out.length - 1] === '') out.pop();
+            return out.join('\n');
+        }
+
+        // PROD-59: formatted (HTML) copy of a markdown resume for pasting into Word, Google Docs
+        // and email. Clean tags only (h1-h3, p, strong, em, ul/li), no inline styles, so the
+        // destination applies its own fonts and spacing. Text is escaped before tags are added.
+        function resumeMarkdownToHtml(text) {
+            if (text === null || text === undefined) return '';
+            if (typeof text !== 'string') text = String(text);
+
+            const inline = (line) =>
+                escapeHtml(line)
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+                    .replace(/\*\*/g, '');
+
+            const html = [];
+            let inList = false;
+            const closeList = () => { if (inList) { html.push('</ul>'); inList = false; } };
+
+            for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
+                const trimmed = raw.trim();
+
+                if (trimmed === '') { closeList(); continue; }
+                if (/^[-*_]{3,}$/.test(trimmed)) { closeList(); continue; }
+
+                const headerMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+                if (headerMatch) {
+                    closeList();
+                    const level = Math.min(headerMatch[1].length, 3);
+                    html.push('<h' + level + '>' + inline(headerMatch[2].trim()) + '</h' + level + '>');
+                    continue;
+                }
+
+                const bulletMatch = trimmed.match(/^[-\u2022*]\s+(.+)$/);
+                if (bulletMatch) {
+                    if (!inList) { html.push('<ul>'); inList = true; }
+                    html.push('<li>' + inline(bulletMatch[1].trim()) + '</li>');
+                    continue;
+                }
+
+                closeList();
+                html.push('<p>' + inline(trimmed) + '</p>');
+            }
+            closeList();
+            return html.join('\n');
+        }
+
+        // PROD-59: put both versions on the clipboard. Plain-text fields (most application forms)
+        // take the plain text; Word, Google Docs and email take the formatted version.
+        // Browsers without ClipboardItem support fall back to plain text only.
+        function copyResumeToClipboard(markdown) {
+            const plain = resumeMarkdownToPlainText(markdown);
+            if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !navigator.clipboard.write) {
+                copyToClipboard(plain);
+                return;
+            }
+            let item;
+            try {
+                item = new ClipboardItem({
+                    'text/html': new Blob([resumeMarkdownToHtml(markdown)], { type: 'text/html' }),
+                    'text/plain': new Blob([plain], { type: 'text/plain' })
+                });
+            } catch (err) {
+                copyToClipboard(plain);
+                return;
+            }
+            navigator.clipboard.write([item]).then(() => {
+                toastSuccess('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Formatted copy failed, trying plain text:', err);
+                copyToClipboard(plain);
+            });
+        }
+
         function copyCurrentResume() {
-            if (currentResumeText) copyToClipboard(currentResumeText);
+            if (currentResumeText) copyResumeToClipboard(currentResumeText);
         }
 
         function copyCurrentCoverLetter() {
@@ -6257,7 +6366,10 @@
         }
 
         function copyCurrentViewedFile() {
-            if (currentViewedFileContent) copyToClipboard(currentViewedFileContent);
+            if (!currentViewedFileContent) return;
+            // PROD-59: resumes copy as formatted + plain text; cover letters copy unchanged
+            if (currentViewedFileType === 'resume') copyResumeToClipboard(currentViewedFileContent);
+            else copyToClipboard(currentViewedFileContent);
         }
 
         function stripMarkdownCodeFences(text) {
@@ -6408,6 +6520,7 @@
         let currentResumeText = null;
         let currentCoverLetterText = null;
         let currentViewedFileContent = null;
+        let currentViewedFileType = null;
         let currentResumeATS = null;
         let currentCoverLetterATS = null;
         let previousSection = null;
@@ -6871,6 +6984,7 @@
                 : file.content;
 
             currentViewedFileContent = displayContent;
+            currentViewedFileType = file.type;
 
             const resultsContent = document.getElementById('results-content');
             resultsContent.innerHTML = `
