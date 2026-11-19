@@ -10369,6 +10369,16 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
 
         // Job analysis qualifications for the resume prompts: one line per required or preferred
         // qualification, with the credit earned and the evidence. Older analyses store plain strings.
+        // PROD-67: first word of every bullet in a generated section, so the older-roles
+        // writer can avoid verbs the recent-roles writer already used.
+        function _bulletOpeningVerbs(sectionText) {
+            const verbs = [];
+            for (const m of String(sectionText || '').matchAll(/^\s*[-\u2022*]\s+([A-Za-z][A-Za-z-]*)/gm)) {
+                if (!verbs.some(v => v.toLowerCase() === m[1].toLowerCase())) verbs.push(m[1]);
+            }
+            return verbs;
+        }
+
         // PROD-62: the resume writers use the posting's wording where the work history supports it.
         // The qualification text comes from the job analysis, worded as the posting words it.
         const POSTING_TERMS_RULE = `USE THE POSTING'S WORDS WHERE THE WORK HISTORY SUPPORTS THEM:
@@ -10544,8 +10554,8 @@ ${jobInfo.strengths.map(s => `- ${s}`).join('\n')}
 CRITICAL ANTI-FABRICATION REQUIREMENTS:
 
 1. BULLET COUNT:
-   - Most recent role: 5-7 bullets with extensive detail
-   - Next 1-2 roles: 4-5 bullets each
+   - 4 to 5 bullets per role. Use 6 only when the work history supports 6 strong, distinct achievements
+   - Fewer is fine when the work history can't truthfully support 4. Never pad
    
 2. TRUTHFULNESS - ABSOLUTELY CRITICAL:
    - Use ONLY achievements and information actually mentioned in the work history above
@@ -10558,6 +10568,8 @@ CRITICAL ANTI-FABRICATION REQUIREMENTS:
    
 3. EACH BULLET MUST:
    - Start with action verb (NOT "spearheaded", "orchestrated", "facilitated")
+   - Use a different opening verb on every bullet in this section, counting other tenses of the same verb as the same verb (Build and Built)
+   - TENSE: a role whose end date is "Present" (or blank) is current. Write its bullets in present tense ("Build", "Lead"). Write every other role in past tense ("Built", "Led")
    - Describe a specific achievement or project mentioned in work history
    - Add quantified impact ONLY if actually mentioned in the work history
    - Use actual tool/system names from the work history
@@ -10595,7 +10607,7 @@ CRITICAL — OUTPUT DISCIPLINE:
         }
 
         // CHUNK 3: Older Professional Experience
-        async function generateOlderExperience(experience, jobInfo) {
+        async function generateOlderExperience(experience, jobInfo, usedVerbs = []) {
             if (!experience || experience.length === 0) {
                 return '';
             }
@@ -10625,13 +10637,17 @@ CRITICAL REQUIREMENTS:
    - Better to have 1-2 accurate bullets than 3-4 fabricated ones
 
 2. BULLET COUNT:
-   - 2-3 bullets per role maximum
+   - 2 to 3 bullets per role
+   - A role that is directly relevant to the target job (it supports the job qualifications above) may have up to 5
+   - Fewer is fine when the work history can't truthfully support more. Never pad
    - Be concise but specific
 
 3. EACH BULLET MUST BE SUBSTANTIVE:
    - Describe a specific accomplishment, responsibility, or skill drawn from the work history — NOT a generic duty that anyone with this job title would list
    - Name the actual tools, systems, platforms, or domains mentioned in the work history
-   - Start with an action verb, and vary the verb across bullets
+   - Start with an action verb. Use a different opening verb on every bullet, counting other tenses of the same verb as the same verb (Build and Built)${usedVerbs.length ? `
+   - These verbs already open bullets in the recent roles. Do not open any bullet with them, in any tense: ${usedVerbs.join(', ')}` : ''}
+   - TENSE: a role whose end date is "Present" (or blank) is current. Write its bullets in present tense ("Build", "Lead"). Write every other role in past tense ("Built", "Led")
    - Include quantified impact ONLY if the metric actually appears in the work history — never estimate or invent one
    - A bullet that restates the basic function of the job ("Responsible for daily operations", "Performed routine reviews") adds nothing — replace it with a specific detail or omit it
 
@@ -10951,7 +10967,8 @@ Return ONLY valid JSON:
                 updateResumeProgress('Generating work history...', 55);
                 const olderExperienceSection = await generateOlderExperience(
                     olderRoles,
-                    jobInfo
+                    jobInfo,
+                    _bulletOpeningVerbs(recentExperienceSection)
                 );
                 
                 // CHUNK 4: Projects
