@@ -10369,6 +10369,13 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
 
         // Job analysis qualifications for the resume prompts: one line per required or preferred
         // qualification, with the credit earned and the evidence. Older analyses store plain strings.
+        // PROD-62: the resume writers use the posting's wording where the work history supports it.
+        // The qualification text comes from the job analysis, worded as the posting words it.
+        const POSTING_TERMS_RULE = `USE THE POSTING'S WORDS WHERE THE WORK HISTORY SUPPORTS THEM:
+- The qualifications above are worded the way the job posting words them. Where the work history shows the candidate doing the same kind of work a qualification describes, use the qualification's own terms for it. Example: a qualification asks for "knowledge management" and the work history describes building and maintaining a Confluence documentation library, so the bullet can say "Built a Confluence knowledge management library"
+- Keep the specifics from the work history with it: tools, numbers, scope
+- Only for the same work described differently. Never use the posting's words for work the history doesn't show. Never swap one tool, product, certification, job title or employer name for another, even a comparable one (HubSpot stays HubSpot when the posting asks for Salesforce)`;
+
         function formatQualificationsForResume(analysis) {
             const lines = [];
             for (const [label, bucket] of [['Required', analysis.requiredQuals], ['Preferred', analysis.preferredQuals]]) {
@@ -10384,10 +10391,43 @@ ${jobAnswers.map((a, n) => `Answer ${n + 1} (Job: ${a.label})${a.gap ? `\nGap it
             return lines.length ? lines.join('\n') : '- None listed';
         }
 
+        // Total years of experience for the summary, computed here so the model never does the math.
+        // Overlapping roles are merged and gaps are skipped. Returns null when any role's dates can't be read.
+        function _summaryExperienceYears(experience) {
+            const roles = Array.isArray(experience) ? experience : [];
+            const now = Date.now();
+            const spans = [];
+            for (const r of roles) {
+                const start = _expDateValue(r.startDate, false);
+                let end = _expDateValue(r.endDate, true);
+                if (isNaN(start) || isNaN(end)) return null;
+                if (!isFinite(end) || end > now) end = now;
+                if (end > start) spans.push([start, end]);
+            }
+            if (!spans.length) return null;
+            spans.sort((a, b) => a[0] - b[0]);
+            let total = 0, curStart = spans[0][0], curEnd = spans[0][1];
+            for (const [st, en] of spans.slice(1)) {
+                if (st > curEnd) { total += curEnd - curStart; curStart = st; curEnd = en; }
+                else if (en > curEnd) curEnd = en;
+            }
+            total += curEnd - curStart;
+            return Math.floor(total / (365.25 * 24 * 60 * 60 * 1000));
+        }
+
         // CHUNK 1: Professional Summary + Core Competencies
         // experience: normalized role array from _normalizeExperienceForResume; skills: profile skills text
         async function generateSummarySection(contact, experience, skills, jobInfo) {
             const workHistory = experienceToText(experience);
+            const totalYears = _summaryExperienceYears(experience);
+            const yearsRule = totalYears >= 1
+                ? `${totalYears} years, computed from the role dates. If you state years of experience, write exactly "${totalYears}+ years". Never round up`
+                : totalYears === 0
+                    ? 'Less than 1 year. Do not state a number of years'
+                    : 'Could not be computed from the role dates. Do not state a number of years';
+            const sentenceRule = totalYears >= 3
+                ? 'Write 3 sentences: sentence 1 is a title the candidate has held, years of experience and focus; sentences 2 and 3 are one achievement each'
+                : 'Write 2 or 3 sentences. Shorter is fine for a short work history';
             
             const prompt = `Generate a professional summary and core competencies section for a resume.
 
@@ -10413,6 +10453,8 @@ TARGET JOB:
 JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence):
 ${jobInfo.qualifications}
 
+${POSTING_TERMS_RULE}
+
 CRITICAL REQUIREMENTS - READ CAREFULLY:
 
 1. CONTACT INFORMATION HEADER:
@@ -10422,25 +10464,31 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
    
    IMPORTANT: Include this header ONLY ONCE at the very top.
 
-2. Professional Summary (3-4 sentences):
-   - Use ONLY information from the work history above
-   - Lead with years of experience and core expertise
+2. Professional Summary (2-3 sentences, no sentence over 25 words, so 75 words at most):
+   - ${sentenceRule}. NEVER pad with filler to reach a length
+   - One idea per sentence. Do not chain ideas together with "including", "with a" or long lists
+   - Use ONLY information from the work history above (and the background context, if provided)
+   - First sentence: a job title the candidate has actually held, or a plain description of their work, plus years of experience. Never use the target job title as the candidate's title unless they have held it
+   - YEARS OF EXPERIENCE: ${yearsRule}
+   - Never state years for a specific role type, title, industry or skill (for example "4+ years in program management"). Only the total above may appear
+   - Use the 2 strongest achievements for this job (1 if the work history only supports one), with their numbers when the work history gives them. Choose by relevance to the target job, not by recency. The rest belong in the experience section
    - Where the work history supports it, reflect the job qualifications the candidate earned credit for
-   - Highlight 2-3 key achievements that are actually mentioned in experience
    - NEVER invent accomplishments, metrics, or skills not in the work history or skills list
-   - Be direct: "I do X, Y, Z" not "I am an expert with proven track record"
+   - Write without pronouns ("Built X", not "I built X"). Say what the candidate did; never describe their character or habits ("hands-on practitioner", "consistent pattern of")
    
-3. Core Competencies:
-   - List ONLY skills explicitly mentioned in the skills list above
+3. Core Competencies (relevant skills only, 15 maximum, up to 4 groups):
+   - A skill is a tool, technology, method, area of domain knowledge, or license/certification, usually 1-4 words (e.g., "Salesforce", "Change Management", "Medicare Claims"). Duties, padded phrases and personality traits ("Detail-Oriented") are not skills
+   - Take skills from the skills list above, or tools and methods named in the work history. You may shorten a skill to its standard name. NEVER invent one
+   - Include only skills related to the target job. Never copy the whole list
    - Favor skills that match job qualifications the candidate earned credit for
-   - NEVER add skills from the job description that aren't in candidate's background
-   - NEVER invent technologies, tools, or methodologies not mentioned
-   - Group by theme (e.g., "Operations & Implementation: Jira | Confluence | Agile")
-   - 4-6 grouped categories maximum
-   - If uncertain whether a skill is in the skills list, leave it out
-
+   - NEVER add skills from the job description that aren't in the candidate's background
+   - Fewer is fine. NEVER pad to reach a number. With 6 or fewer skills, use a single group
+   - Each group: the group name in bold on its own line, then its skills on the next line separated by " | "
+   - If uncertain whether a skill is in the candidate's background, leave it out
+   
 4. Tone - AVOID AI CLICHÉS:
-   - BANNED WORDS: "spearheaded", "orchestrated", "game-changing", "proven track record", "rockstar", "synergy", "leverage", "deep dive"
+   - BANNED WORDS AND PHRASES: "spearheaded", "orchestrated", "game-changing", "track record", "rockstar", "synergy", "leverage", "deep dive", "results-driven", "progressive experience", "from scratch", "consistent pattern", "hands-on practitioner", "scalable"
+   - No em dashes. Use a comma or a new sentence instead
    - Natural, professional, confident
    - Use clear, direct language
 
@@ -10448,6 +10496,24 @@ CRITICAL REQUIREMENTS - READ CAREFULLY:
    - Better to have a shorter, accurate summary than a padded one with fake information
    - User is legally responsible for accuracy - do not put false information
    - When in doubt, leave it out
+
+EXAMPLE (shows length and shape only. Never copy its content, numbers or skills):
+
+## Professional Summary
+
+Operations manager with 9+ years running patient flow, bed management and staff scheduling for large hospital systems. Cut average ER boarding time from 6 hours to 3.5 by redesigning bed assignment and discharge timing at a 400-bed hospital. Rolled out a new staffing system across 12 nursing units, training 300 staff and cutting overtime costs 18% in the first year.
+
+---
+
+## Core Competencies
+
+**Patient Flow**
+Bed Management | ER Throughput | Discharge Planning
+
+**Systems**
+Epic | Kronos | Excel
+
+DO NOT WRITE LIKE THIS: "Results-driven operations leader with 15+ years of progressive experience across healthcare operations, patient flow and workforce management, including 6+ years leading enterprise programs, with a consistent pattern of delivering scalable solutions." (One 31-word sentence holding several ideas, a tenure claim for one role type, and filler phrases.)
 
 Format your response in markdown with contact header first, then summary, then competencies. Do not include the word "markdown" in your response.${profileData.backgroundContext ? `\n\nBACKGROUND CONTEXT (candidate-confirmed):\nThe candidate has provided the following context about their experience. It does not appear on their resume but is factually accurate and has been verified by the candidate. Use it to inform this section where relevant — do not fabricate beyond what is stated.\n${profileData.backgroundContext}` : ''}`;
 
@@ -10469,6 +10535,8 @@ TARGET JOB: ${jobInfo.title} at ${jobInfo.company}
 
 JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence). Surface the ones the candidate earned credit for wherever the work history above truthfully supports them; never claim one it doesn't:
 ${jobInfo.qualifications}
+
+${POSTING_TERMS_RULE}
 
 CONFIRMED PROFILE STRENGTHS (these matched the job — ensure they appear in the resume where truthfully supported by the work history):
 ${jobInfo.strengths.map(s => `- ${s}`).join('\n')}
@@ -10542,6 +10610,8 @@ TARGET JOB: ${jobInfo.title}
 
 JOB QUALIFICATIONS (from the job analysis: how much credit the candidate earned for each, and the evidence). Surface the ones the candidate earned credit for wherever the work history above truthfully supports them; never claim one it doesn't:
 ${jobInfo.qualifications}
+
+${POSTING_TERMS_RULE}
 
 CONFIRMED PROFILE STRENGTHS (these matched the job — if the work history below supports any of these, make sure they surface):
 ${jobInfo.strengths.map(s => `- ${s}`).join('\n')}
@@ -10680,26 +10750,46 @@ Format your response in markdown. Only include ## EDUCATION and/or ## CERTIFICAT
 
         // CHUNK 6: ATS Analysis
         async function generateATSAnalysis(fullResume, jobDescription) {
-            const prompt = `Analyze this resume for ATS compatibility.
+            // PROD-63: the checker reads the resume as plain text (users never see the markdown),
+            // knows today's date, and only advises on what the user controls: their profile.
+            const plainResume = resumeMarkdownToPlainText(fullResume);
+            const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const prompt = `You are checking how ready this resume is for a specific job, and writing notes for the person whose resume it is.
 
-RESUME:
-${fullResume}
+TODAY'S DATE: ${today}. A role that started on or before today's date is not future-dated. Never call a date future-dated unless it is after today's date.
+
+RESUME (plain text):
+${plainResume}
 
 JOB DESCRIPTION:
 ${jobDescription}
 
-Provide honest assessment of the resume's ATS compatibility based on what's actually in the resume. Do not suggest adding information that wasn't in the original profile.
+WHO DECIDES WHAT:
+MatchMentum wrote this resume from the person's profile. MatchMentum decides the layout, fonts, section headers, section order, how skills are grouped, which roles appear, and how the summary and bullets are worded, and it exports an ATS-safe file. The person controls only their profile: their jobs, dates, duties, results, skills, education and certifications.
+
+RULES FOR EVERY NOTE AND RECOMMENDATION:
+1. Speak to the person as "you". Never use their name or the third person.
+2. Never recommend changes to anything MatchMentum decides: formatting, markdown, headers, section order, grouped or flat skills lists, where a role appears, or rewording the summary or a bullet.
+3. Never recommend using the job's title as the person's title, or adding any term, tool, skill or experience the resume doesn't show. When the job asks for something the resume doesn't show, ask whether they have it: "Did you ...? If so, add it to your profile and regenerate."
+4. Recommendations are only for things the person can act on in their profile: missing results or numbers, experience they may have left out, or context they may want to add. Each one names the specific item. Give 3 to 5; fewer is fine.
+5. No em dashes.
+
+SCORING:
+- format: every role has a job title, employer and dates, and the dates are consistent. Do not score layout or markdown.
+- keywords: how much of the job's requirements the resume's content covers.
+- structure: whether each role shows clear scope, and whether progression across roles is easy to follow.
+- quantification: how many achievements carry real results or numbers.
 
 Return ONLY valid JSON:
 {
-  "overallScore": 85,
+  "overallScore": 80,
   "categories": {
-    "format": {"score": 95, "feedback": "Clean layout, excellent ATS compatibility."},
-    "keywords": {"score": 82, "feedback": "Good keyword coverage."},
-    "structure": {"score": 90, "feedback": "Well-organized."},
-    "quantification": {"score": 85, "feedback": "Good use of metrics."}
+    "format": {"score": 95, "feedback": "Every role has a title, employer and dates, and the dates line up."},
+    "keywords": {"score": 75, "feedback": "Your resume covers the posting's reporting and forecasting requirements. Vendor management doesn't appear anywhere."},
+    "structure": {"score": 85, "feedback": "Each role shows clear scope, and your progression from analyst to manager is easy to follow."},
+    "quantification": {"score": 70, "feedback": "Your two earlier roles have strong numbers. Your current role describes what you built but not the results."}
   },
-  "recommendations": ["Add specific keywords that are in the job description and match actual experience", "Include more tools/technologies actually used"]
+  "recommendations": ["The posting asks for vendor management. Did you manage vendors or contracts in any role? If so, add it to your profile and regenerate.", "Your current role lists what you built but no results. If you know figures like volume handled or hours saved, add them to that role in your profile."]
 }`;
 
             const response = await callClaudeAPI(prompt, 'Analyze ATS compatibility.');
