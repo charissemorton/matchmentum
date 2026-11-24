@@ -4639,6 +4639,37 @@
 // Concurrent callers share one in-flight request, so a first login creates one
         // subscription row instead of several racing inserts (409 conflicts).
         let _subscriptionRequest = null;
+
+        // PROD-64: one shared login check. When the connection drops, Supabase's getUser()
+        // doesn't fail: it answers "no user" with an AuthRetryableFetchError. connectionError
+        // lets callers tell "couldn't check" apart from "signed out".
+        async function getCurrentUser() {
+            const { data, error } = await getSupabase().auth.getUser();
+            return {
+                user: (data && data.user) || null,
+                connectionError: !!(error && error.name === 'AuthRetryableFetchError')
+            };
+        }
+
+        function toastConnectionError() {
+            showToast("Couldn't connect. Please check your connection and try again.", 'error');
+        }
+
+        // PROD-64: a cloud save was skipped because the account couldn't be reached.
+        // The browser copy is kept; warn only, no automatic retry. The short window keeps
+        // one save action from showing the toast more than once.
+        let _cloudSaveWarnedAt = 0;
+        function warnCloudSaveSkipped() {
+            const now = Date.now();
+            if (now - _cloudSaveWarnedAt < 5000) return;
+            _cloudSaveWarnedAt = now;
+            toastWarning("Saved on this device. We couldn't reach your account, so it'll sync next time you save.");
+        }
+
+        // PROD-64: true when the last subscription fetch returned null because of a
+        // dropped connection rather than a signed-out user.
+        let _subscriptionConnectionError = false;
+
         function getUserSubscription() {
             if (!_subscriptionRequest) {
                 _subscriptionRequest = _fetchOrCreateSubscription()
@@ -4648,9 +4679,11 @@
         }
 
         async function _fetchOrCreateSubscription() {
+            _subscriptionConnectionError = false;
             try {
                 const supabase = getSupabase();
-                const { data: { user } } = await supabase.auth.getUser();
+                const { user, connectionError } = await getCurrentUser();
+                _subscriptionConnectionError = connectionError;
                 
                 if (!user) return null;
                 
@@ -4730,6 +4763,10 @@
             const subscription = await getUserSubscription();
             
             if (!subscription) {
+                // PROD-64: a dropped connection isn't a missing plan
+                if (_subscriptionConnectionError) {
+                    return { allowed: false, subscription: null, reason: 'connection_error' };
+                }
                 return { allowed: false, subscription: null, reason: 'no_subscription' };
             }
 
@@ -4861,6 +4898,11 @@
          * @param {Object} subscription - Current subscription data
          */
         function showUpgradeModal(actionType, reason, subscription) {
+            // PROD-64: couldn't reach the account, so don't claim the allowance is used up
+            if (reason === 'connection_error') {
+                toastConnectionError();
+                return;
+            }
             const tier = subscription?.tier || 'free';
             const modal = document.getElementById('upgradeModal');
             if (!modal) return;
@@ -5020,9 +5062,12 @@
                     return;
                 }
                 
-                const supabase = getSupabase();
-                const { data: { user } } = await supabase.auth.getUser();
+                const { user, connectionError } = await getCurrentUser();
                 
+                if (connectionError) {
+                    toastConnectionError();
+                    return;
+                }
                 if (!user) {
                     toastWarning('Please log in to continue.');
                     return;
@@ -6655,10 +6700,15 @@
         async function saveProfileToCloud(profileData) {
             _ensureExperienceList(profileData);
             const supabase = getSupabase();
-            const { data: { user } } = await supabase.auth.getUser();
+            const { user, connectionError } = await getCurrentUser();
             
             if (!user) {
-                debugLog('No user logged in, skipping cloud save');
+                if (connectionError) {
+                    debugLog('Connection error, skipping cloud save of profile');
+                    warnCloudSaveSkipped();
+                } else {
+                    debugLog('No user logged in, skipping cloud save');
+                }
                 return false;
             }
 
@@ -6742,10 +6792,15 @@
          */
         async function saveDocumentToCloud(documentType, jobTitle, company, content, atsScore = null, atsAnalysis = null) {
             const supabase = getSupabase();
-            const { data: { user } } = await supabase.auth.getUser();
+            const { user, connectionError } = await getCurrentUser();
             
             if (!user) {
-                debugLog('No user logged in, skipping cloud save');
+                if (connectionError) {
+                    debugLog('Connection error, skipping cloud save of document');
+                    warnCloudSaveSkipped();
+                } else {
+                    debugLog('No user logged in, skipping cloud save');
+                }
                 return null;
             }
 
@@ -7258,14 +7313,12 @@
             // Gate feature sections — anonymous users must sign up first
             const gatedSections = ['setup-section', 'review-section', 'job-analysis-section', 'generated-files-section', 'help-section', 'find-role-section'];
             if (gatedSections.includes(sectionId)) {
-                const supabase = getSupabase();
-                const connectionFailed = () => showToast("Couldn't connect. Please check your connection and try again.", 'error');
-                supabase.auth.getUser().then(({ data: { user }, error }) => {
+                getCurrentUser().then(({ user, connectionError }) => {
                     // A dropped connection or Supabase outage comes back as
                     // AuthRetryableFetchError with no user. Don't treat it as signed out;
                     // keep the user on their current screen.
-                    if (error && error.name === 'AuthRetryableFetchError') {
-                        connectionFailed();
+                    if (connectionError) {
+                        toastConnectionError();
                         return;
                     }
                     if (!user) {
@@ -7277,7 +7330,7 @@
                 }, (err) => {
                     // The login check itself failed unexpectedly.
                     console.error('showSection auth check failed:', err);
-                    connectionFailed();
+                    toastConnectionError();
                 });
                 return;
             }
@@ -12021,7 +12074,11 @@ Write the letter. Do not explain what you're doing. Do not add a subject line. D
 
             try {
                 const supabase = getSupabase();
-                const { data: { user } } = await supabase.auth.getUser();
+                const { user, connectionError } = await getCurrentUser();
+                if (connectionError) {
+                    toastConnectionError();
+                    return;
+                }
                 if (!user) throw new Error('Not authenticated');
 
                 const { error } = await supabase
